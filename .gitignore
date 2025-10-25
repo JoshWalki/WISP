@@ -23,6 +23,7 @@ Thumbs.db
 *.swp
 *.swo
 .claude/
+*.zip
 
 # Reports (may contain sensitive data)
 reports/
