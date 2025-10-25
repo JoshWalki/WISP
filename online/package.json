@@ -1,0 +1,27 @@
+{
+  "name": "wisp-companion",
+  "version": "1.0.0",
+  "description": "WISP Local Node.js Companion - Secure PsExec wrapper for LAN-only remote script execution",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "generate-token": "node scripts/generate-token.js",
+    "setup": "setup.bat",
+    "verify": "verify-setup.bat"
+  },
+  "keywords": [
+    "wisp",
+    "psexec",
+    "remote-execution",
+    "windows-management"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "devDependencies": {},
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

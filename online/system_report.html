@@ -1,0 +1,3251 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WISP - Windows Information System Portal</title>
+    <style>
+      :root {
+        --color-fg: #0b122a;
+        --color-bg: #070d21;
+        --color-font: #f9f9f9;
+        --secondary-color: #3a2ec6;
+        --accent-color: #66ffc0;
+      }
+
+      a {
+        text-decoration: underline;
+        color: var(--color-font);
+      }
+
+      body {
+        font-family: "Nunito Sans", sans-serif;
+        margin: 0;
+        padding: 20px;
+        background-color: var(--color-bg);
+        color: var(--color-font);
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background: var(--color-fg);
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.3);
+        position: relative;
+      }
+      h1 {
+        color: var(--accent-color);
+        border-bottom: 3px solid var(--accent-color);
+        padding-bottom: 10px;
+        font-weight: 700;
+      }
+      h2 {
+        color: var(--color-font);
+        margin-top: 30px;
+        padding: 10px;
+        background: linear-gradient(
+          135deg,
+          rgba(102, 255, 192, 0.1) 0%,
+          rgba(58, 46, 198, 0.1) 100%
+        );
+        border-left: 4px solid var(--accent-color);
+        border-radius: 5px;
+      }
+      h3 {
+        color: var(--accent-color);
+        margin-top: 20px;
+        font-weight: 600;
+      }
+      .summary {
+        background: linear-gradient(
+          135deg,
+          rgba(102, 255, 192, 0.15) 0%,
+          rgba(58, 46, 198, 0.1) 100%
+        );
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        border-left: 4px solid var(--accent-color);
+      }
+      .section {
+        margin-bottom: 30px;
+      }
+      .search-container {
+        margin: 20px 0;
+        padding: 15px;
+        background: var(--color-bg);
+        border-radius: 10px;
+        border: 1px solid rgba(102, 255, 192, 0.2);
+      }
+      .search-input-wrapper {
+        position: relative;
+        width: 100%;
+      }
+      .search-box {
+        width: 100%;
+        padding: 10px 40px 10px 15px;
+        font-size: 16px;
+        border: 2px solid var(--accent-color);
+        border-radius: 25px;
+        outline: none;
+        box-sizing: border-box;
+        background-color: var(--color-fg);
+        color: var(--color-font);
+      }
+      .search-box:focus {
+        border-color: var(--accent-color);
+        box-shadow: 0 0 10px rgba(102, 255, 192, 0.5);
+      }
+      .clear-search {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: transparent;
+        color: var(--color-font);
+        border: none;
+        padding: 5px;
+        cursor: pointer;
+        font-size: 18px;
+        font-weight: 600;
+        opacity: 0;
+        transition: all 0.2s ease;
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+      }
+      .clear-search.visible {
+        opacity: 0.6;
+      }
+      .clear-search:hover {
+        opacity: 1;
+        background: rgba(255, 102, 110, 0.2);
+      }
+      .search-info {
+        margin-top: 10px;
+        font-size: 14px;
+        color: #cdcdcd;
+      }
+      .text-center {
+        text-align: center;
+      }
+      .highlight {
+        background-color: var(--accent-color);
+        color: var(--color-bg);
+        font-weight: bold;
+      }
+      .search-stats {
+        float: right;
+        font-size: 12px;
+        color: #cdcdcd;
+      }
+      .collapsible {
+        background: linear-gradient(
+          135deg,
+          rgba(102, 255, 192, 0.2) 0%,
+          rgba(58, 46, 198, 0.2) 100%
+        );
+        color: var(--color-font);
+        cursor: pointer;
+        padding: 12px;
+        border: none;
+        text-align: left;
+        outline: none;
+        font-size: 14px;
+        margin: 5px 0;
+        border-radius: 10px;
+        width: 100%;
+        transition: all 0.3s ease;
+        font-weight: 600;
+      }
+      .collapsible:hover {
+        background: linear-gradient(
+          135deg,
+          rgba(102, 255, 192, 0.3) 0%,
+          rgba(58, 46, 198, 0.3) 100%
+        );
+      }
+      .collapsible.has-matches {
+        background: var(--accent-color);
+        color: var(--color-bg);
+      }
+      .content {
+        padding: 15px 18px;
+        display: none;
+        overflow: hidden;
+        background-color: var(--color-bg);
+        border-radius: 0 0 10px 10px;
+        margin-bottom: 10px;
+      }
+      .content.show {
+        display: block;
+      }
+      table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        margin: 10px 0;
+        font-size: 12px;
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      th,
+      td {
+        padding: 10px;
+        text-align: left;
+        border: none;
+      }
+      th {
+        background-color: var(--color-fg);
+        color: var(--accent-color);
+        font-weight: 600;
+      }
+      tr:nth-child(even) {
+        background-color: rgba(255, 255, 255, 0.02);
+      }
+      tr:nth-child(odd) {
+        background-color: transparent;
+      }
+      .status-ok {
+        color: var(--accent-color);
+        font-weight: bold;
+      }
+      .status-error {
+        color: #ff6b6b;
+        font-weight: bold;
+      }
+      .status-warning {
+        color: #ffd93d;
+        font-weight: bold;
+      }
+      .admin-status {
+        padding: 5px 10px;
+        border-radius: 5px;
+        font-weight: bold;
+      }
+      .admin-yes {
+        background-color: rgba(102, 255, 192, 0.2);
+        color: var(--accent-color);
+      }
+      .admin-no {
+        background-color: rgba(255, 107, 107, 0.2);
+        color: #ff6b6b;
+      }
+      .file-selector {
+        margin-bottom: 20px;
+        padding: 15px;
+        background: linear-gradient(
+          135deg,
+          rgba(102, 255, 192, 0.1) 0%,
+          rgba(58, 46, 198, 0.05) 100%
+        );
+        border-radius: 10px;
+        border: 1px solid rgba(102, 255, 192, 0.2);
+      }
+      .file-input {
+        margin-right: 10px;
+        color-scheme: dark;
+      }
+      button {
+        background: var(--accent-color);
+        color: var(--color-fg);
+        border: none;
+        padding: 8px 16px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s ease;
+      }
+      button:hover {
+        filter: brightness(85%);
+      }
+      .loading {
+        text-align: center;
+        color: #cdcdcd;
+        font-style: italic;
+      }
+      .error {
+        color: #ff6b6b;
+        background: rgba(255, 107, 107, 0.1);
+        padding: 10px;
+        border-radius: 10px;
+        border: 1px solid #ff6b6b;
+      }
+      pre {
+        background: var(--color-bg);
+        padding: 10px;
+        border-radius: 10px;
+        overflow-x: auto;
+        font-size: 11px;
+        max-height: 300px;
+        border: 1px solid rgba(102, 255, 192, 0.2);
+      }
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--color-fg);
+        border-radius: 3px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: var(--secondary-color);
+      }
+      .action-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.5) !important;
+        filter: brightness(1.1);
+      }
+      .action-btn:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+      }
+      /* Toast Notification Styles */
+      .toast-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .toast {
+        background: var(--color-fg);
+        color: var(--color-font);
+        padding: 15px 20px;
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        min-width: 300px;
+        max-width: 400px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        animation: slideIn 0.3s ease-out;
+        border-left: 4px solid var(--accent-color);
+      }
+      .toast.success {
+        border-left-color: var(--accent-color);
+      }
+      .toast.error {
+        border-left-color: #ff6b6b;
+      }
+      .toast.info {
+        border-left-color: var(--secondary-color);
+      }
+      .toast.warning {
+        border-left-color: #ffd93d;
+      }
+      .toast-icon {
+        font-size: 24px;
+        flex-shrink: 0;
+      }
+      .toast-content {
+        flex: 1;
+      }
+      .toast-title {
+        font-weight: 700;
+        margin-bottom: 4px;
+      }
+      .toast-message {
+        font-size: 13px;
+        opacity: 0.9;
+      }
+      .toast-close {
+        background: none;
+        border: none;
+        color: var(--color-font);
+        font-size: 20px;
+        cursor: pointer;
+        padding: 0;
+        width: 24px;
+        height: 24px;
+        opacity: 0.6;
+        transition: opacity 0.2s;
+      }
+      .toast-close:hover {
+        opacity: 1;
+      }
+      @keyframes slideIn {
+        from {
+          transform: translateX(400px);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+      @keyframes slideOut {
+        from {
+          transform: translateX(0);
+          opacity: 1;
+        }
+        to {
+          transform: translateX(400px);
+          opacity: 0;
+        }
+      }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+      .spinner {
+        border: 3px solid rgba(102, 255, 192, 0.2);
+        border-top: 3px solid var(--accent-color);
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        animation: spin 1s linear infinite;
+      }
+      .toast.removing {
+        animation: slideOut 0.3s ease-out forwards;
+      }
+      /* Connection Status Indicator */
+      .connection-status {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 15px;
+        border-radius: 25px;
+        background: var(--color-bg);
+        font-size: 13px;
+        font-weight: 600;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      }
+      .status-indicator {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        position: relative;
+      }
+      .status-indicator.connected {
+        background-color: #00ff88;
+        box-shadow: 0 0 10px #00ff88;
+      }
+      .status-indicator.disconnected {
+        background-color: #ff4444;
+        box-shadow: 0 0 10px #ff4444;
+      }
+      .status-indicator.checking {
+        background-color: #ffaa00;
+        animation: pulse 1.5s ease-in-out infinite;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.4;
+        }
+      }
+      /* Pre-section search bar */
+      .pre-search-container {
+        position: relative;
+      }
+      .pre-search-trigger {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: var(--accent-color);
+        color: var(--color-bg);
+        border: none;
+        padding: 8px 15px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 600;
+        z-index: 999;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+      .pre-search-trigger:hover {
+        background: var(--secondary-color);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      }
+      .pre-search-trigger.active {
+        display: none;
+      }
+      .pre-search-bar {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: var(--color-fg);
+        border-radius: 8px;
+        padding: 10px;
+        display: none;
+        z-index: 1000;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        min-width: 300px;
+      }
+      .pre-search-bar.active {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .pre-search-input-row {
+        display: flex;
+        gap: 5px;
+        align-items: center;
+      }
+      .pre-search-input {
+        flex: 1;
+        padding: 6px 10px;
+        border: none;
+        border-radius: 5px;
+        background: var(--color-bg);
+        color: var(--color-font);
+        font-size: 13px;
+        outline: none;
+      }
+      .pre-search-input:focus {
+        border-color: none;
+        background-color: #04091a;
+      }
+      .pre-search-nav {
+        display: flex;
+        gap: 3px;
+      }
+      .pre-search-btn {
+        background: var(--secondary-color);
+        color: var(--color-font);
+        border: none;
+        padding: 6px 10px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 600;
+        transition: all 0.2s;
+      }
+      .pre-search-btn:hover {
+        background: var(--accent-color);
+        color: var(--color-bg);
+      }
+      .pre-search-close {
+        background: #ff6b6b;
+        padding: 4px 8px;
+        font-size: 14px;
+      }
+      .pre-search-close:hover {
+        background: #ff5252;
+      }
+      .pre-search-info {
+        font-size: 11px;
+        color: #cdcdcd;
+        text-align: center;
+      }
+      .pre-search-highlight {
+        background-color: #ffd93d;
+        color: #000;
+        font-weight: bold;
+      }
+      .pre-search-current {
+        background-color: var(--accent-color);
+        color: var(--color-bg);
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Toast Notification Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <div class="container">
+      <!-- Connection Status Indicator (Top Right) -->
+      <div class="connection-status" id="connectionStatus">
+        <span class="status-indicator checking" id="statusIndicator"></span>
+        <span id="statusText">Checking...</span>
+      </div>
+
+      <img src="assests/logo-full-size.png" alt="Logo" style="width: 300px" />
+
+      <!-- Remote Actions Section -->
+      <div class="section" id="remoteActionsSection">
+        <h2>Remote Actions</h2>
+        <div
+          style="
+            background: var(--color-bg);
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 15px;
+          "
+        >
+          <p style="margin-bottom: 15px; color: #cdcdcd">
+            Execute approved scripts on remote endpoints using WISP Companion
+            Service.
+          </p>
+
+          <div style="margin-bottom: 20px">
+            <label
+              for="targetHostInput"
+              style="display: block; margin-bottom: 8px; font-weight: 600"
+            >
+              Target Hostname or IP:
+            </label>
+            <input
+              type="text"
+              id="targetHostInput"
+              placeholder="e.g., PC-001 or 192.168.1.100"
+              style="
+                width: 100%;
+                max-width: 400px;
+                padding: 10px;
+                border: 2px solid var(--accent-color);
+                border-radius: 8px;
+                background: var(--color-fg);
+                color: var(--color-font);
+                font-size: 14px;
+              "
+            />
+          </div>
+
+          <div style="display: flex; flex-wrap: wrap; gap: 10px">
+            <button class="action-btn" onclick="runRemoteTask('system-report')">
+              <div>
+                <div style="font-weight: 600">Gather System Data</div>
+                <div style="font-size: 11px; opacity: 0.8">
+                  Run SystemReport.bat
+                </div>
+              </div>
+            </button>
+
+            <button class="action-btn" onclick="runRemoteTask('gpupdate')">
+              <div>
+                <div style="font-weight: 600">Run gpupdate</div>
+                <div style="font-size: 11px; opacity: 0.8">
+                  Force Group Policy update
+                </div>
+              </div>
+            </button>
+
+            <button
+              class="action-btn"
+              onclick="runRemoteTask('test-connection')"
+            >
+              <div>
+                <div style="font-weight: 600">Test Connection</div>
+                <div style="font-size: 11px; opacity: 0.8">Ping test</div>
+              </div>
+            </button>
+          </div>
+
+          <div
+            id="remoteActionStatus"
+            style="
+              margin-top: 20px;
+              padding: 15px;
+              border-radius: 8px;
+              display: none;
+            "
+          ></div>
+        </div>
+      </div>
+
+      <div class="file-selector">
+        <h3>Load System Data</h3>
+        <input
+          type="file"
+          id="jsonFileInput"
+          class="file-input"
+          accept=".json"
+        />
+        <p style="margin: 10px 0 0 0; font-size: 14px; color: #7f8c8d">
+          Manually select a JSON file. Run Gather System Data to automatically
+          generate and select.
+        </p>
+      </div>
+
+      <div id="reportContent" style="display: none">
+        <div class="summary" id="summarySection">
+          <!-- Summary will be populated here -->
+        </div>
+
+        <div class="search-container">
+          <div class="search-input-wrapper">
+            <input
+              type="text"
+              class="search-box"
+              id="searchBox"
+              placeholder="Search system information... (e.g., 'memory', 'network', 'error', 'service name')"
+            />
+            <button
+              class="clear-search"
+              id="clearSearchBtn"
+              onclick="clearSearch()"
+            >
+              ✕
+            </button>
+          </div>
+          <div class="search-info">
+            <span id="searchStats" class="search-stats"></span>
+            Start typing to search through all system information. Results will
+            be highlighted and relevant sections will expand automatically.
+          </div>
+        </div>
+
+        <div id="dataContainer">
+          <!-- Data sections will be populated here -->
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      <div class="text-center" style="margin: 20px 0; opacity: 0.5">
+        Made by
+        <a href="https://github.com/JoshWalki/WISP" target="_blank">Josh</a>
+      </div>
+    </footer>
+
+    <script>
+      let systemData = null;
+      let originalSections = {};
+
+      // File input handler
+      document
+        .getElementById("jsonFileInput")
+        .addEventListener("change", function (event) {
+          const file = event.target.files[0];
+          if (file) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+              try {
+                const data = JSON.parse(e.target.result);
+                loadSystemData(data);
+              } catch (error) {
+                alert("Error parsing JSON file: " + error.message);
+              }
+            };
+            reader.readAsText(file);
+          }
+        });
+
+      function loadSampleData() {
+        // Sample data for demonstration
+        const sampleData = {
+          metadata: {
+            machine: "SAMPLE-PC",
+            user: "SampleUser",
+            generated: "2024-10-04 17:30:00",
+            isAdmin: true,
+          },
+          system: {
+            computerInfo: {
+              computerName: "SAMPLE-PC",
+              manufacturer: "Dell Inc.",
+              model: "OptiPlex 7090",
+              totalPhysicalMemory: 17179869184,
+              processors: "Intel(R) Core(TM) i7-10700 CPU @ 2.90GHz",
+              windowsVersion: "10.0.19045",
+            },
+            uptime: {
+              days: 2,
+              hours: 14,
+              minutes: 32,
+              totalHours: 62.53,
+            },
+            disks: [
+              {
+                drive: "C:",
+                fileSystem: "NTFS",
+                size: 500000000000,
+                freeSpace: 250000000000,
+                percentFree: 50,
+              },
+            ],
+          },
+          network: {
+            adapters: [
+              {
+                name: "Ethernet",
+                description: "Intel Ethernet Connection",
+                macAddress: "AA:BB:CC:DD:EE:FF",
+                speed: 1000000000,
+                ipAddresses: ["192.168.1.100"],
+              },
+            ],
+          },
+          processes: {
+            topByMemory: [
+              { name: "chrome", id: 1234, memoryMB: 512.3, cpu: 15.2 },
+            ],
+          },
+        };
+        loadSystemData(sampleData);
+      }
+
+      function loadSystemData(data) {
+        systemData = data;
+        document.getElementById("reportContent").style.display = "block";
+
+        // Populate summary
+        populateSummary(data.metadata);
+
+        // Populate data sections
+        populateDataSections(data);
+
+        // Store original content for search
+        storeOriginalContent();
+
+        // Initialize pre-section search buttons
+        initializePreSearchElements();
+
+        // Show remote actions section
+        document.getElementById("remoteActionsSection").style.display = "block";
+      }
+
+      function populateSummary(metadata) {
+        const summaryHtml = `
+                <h3>Report Summary</h3>
+                <p><strong>Generated:</strong> ${metadata.generated}</p>
+                <p><strong>Machine:</strong> ${metadata.machine}</p>
+                <p><strong>User:</strong> ${metadata.user}</p>
+                <p><strong>Admin Rights:</strong> <span class="admin-status ${
+                  metadata.isAdmin ? "admin-yes" : "admin-no"
+                }">${metadata.isAdmin ? "YES" : "NO"}</span></p>
+            `;
+        document.getElementById("summarySection").innerHTML = summaryHtml;
+      }
+
+      function populateDataSections(data) {
+        const container = document.getElementById("dataContainer");
+        container.innerHTML = "";
+
+        // System Information
+        if (data.system) {
+          container.appendChild(
+            createSection("System & Hardware Information", [
+              createSubSection(
+                "System Info",
+                formatSystemInfo(data.system.systeminfo)
+              ),
+              createSubSection(
+                "Windows Build",
+                formatWindowsBuild(data.system.windowsBuild)
+              ),
+              createSubSection(
+                "System Uptime",
+                formatUptime(data.system.uptime)
+              ),
+            ])
+          );
+        }
+
+        // Storage Information
+        if (data.storage) {
+          container.appendChild(
+            createSection("Storage Information", [
+              createSubSection(
+                "Logical Disks",
+                formatLogicalDisks(data.storage.logicalDisks)
+              ),
+              createSubSection(
+                "Mount Points",
+                formatMountPoints(data.storage.mountPoints)
+              ),
+            ])
+          );
+        }
+
+        // Hardware Information
+        if (data.hardware) {
+          container.appendChild(
+            createSection("Hardware Information", [
+              createSubSection(
+                "Problem Devices",
+                formatProblemDevices(data.hardware.problemDevices)
+              ),
+              createSubSection("Drivers", formatDrivers(data.hardware.drivers)),
+            ])
+          );
+        }
+
+        // Software Information
+        if (data.software) {
+          container.appendChild(
+            createSection("Software Information", [
+              createSubSection(
+                "Installed Applications",
+                formatInstalledApps(data.software.installedApps)
+              ),
+              createSubSection(
+                "Installed Hotfixes",
+                formatHotfixes(data.software.hotfixes)
+              ),
+              createSubSection(
+                "Startup Programs (HKLM)",
+                formatStartupPrograms(data.software.startupPrograms.hklm)
+              ),
+              createSubSection(
+                "Startup Programs (HKCU)",
+                formatStartupPrograms(data.software.startupPrograms.hkcu)
+              ),
+            ])
+          );
+        }
+
+        // Processes & Services
+        if (data.processes || data.services) {
+          const sections = [];
+          if (data.processes)
+            sections.push(
+              createSubSection(
+                "Top Processes",
+                formatTopProcesses(data.processes.topProcesses)
+              )
+            );
+          if (data.services)
+            sections.push(
+              createSubSection(
+                "All Services",
+                formatAllServices(data.services.allServices)
+              )
+            );
+          if (data.scheduledTasks)
+            sections.push(
+              createSubSection(
+                "Scheduled Tasks",
+                formatScheduledTasks(data.scheduledTasks)
+              )
+            );
+          container.appendChild(
+            createSection("Processes & Services", sections)
+          );
+        }
+
+        // Network Information
+        if (data.network) {
+          container.appendChild(
+            createSection("Network Information", [
+              createSubSection(
+                "IP Configuration",
+                formatNetworkConfig(data.network.ipconfig)
+              ),
+              createSubSection(
+                "Network Adapters",
+                formatNetworkAdapters(data.network.adapters)
+              ),
+              createSubSection(
+                "WiFi Profiles",
+                formatWifiProfiles(data.network.wifiProfiles)
+              ),
+            ])
+          );
+        }
+
+        // Power Information
+        if (data.power) {
+          container.appendChild(
+            createSection("Power Information", [
+              createSubSection(
+                "Battery Report",
+                formatPowerReport(data.power.batteryReport)
+              ),
+              createSubSection(
+                "Energy Report",
+                formatPowerReport(data.power.energyReport)
+              ),
+            ])
+          );
+        }
+
+        // Event Logs
+        if (data.events) {
+          container.appendChild(
+            createSection("Event Logs (24 Hours)", [
+              createSubSection(
+                "System Errors & Critical",
+                formatEvents(data.events.systemErrors)
+              ),
+              createSubSection(
+                "Application Errors & Critical",
+                formatEvents(data.events.applicationErrors)
+              ),
+            ])
+          );
+        }
+
+        // Group Policy
+        if (data.groupPolicy) {
+          container.appendChild(
+            createSection("Group Policy", [
+              createSubSection(
+                "Policy Results",
+                formatGroupPolicy(data.groupPolicy)
+              ),
+            ])
+          );
+        }
+
+        // Additional Information
+        if (data.additional) {
+          container.appendChild(
+            createSection("Additional Information", [
+              createSubSection(
+                "Environment Variables",
+                formatEnvironmentVars(data.additional.environment)
+              ),
+              createSubSection(
+                "User Profile Paths",
+                formatUserProfile(data.additional.userProfile)
+              ),
+              createSubSection(
+                "System Paths",
+                formatSystemPaths(data.additional.systemPaths)
+              ),
+            ])
+          );
+        }
+      }
+
+      function createSection(title, subsections) {
+        const section = document.createElement("div");
+        section.className = "section";
+
+        const header = document.createElement("h2");
+        header.textContent = title;
+        section.appendChild(header);
+
+        subsections.forEach((subsection) => {
+          section.appendChild(subsection);
+        });
+
+        return section;
+      }
+
+      function createSubSection(title, content) {
+        const button = document.createElement("button");
+        button.className = "collapsible";
+        button.textContent = title;
+
+        const contentDiv = document.createElement("div");
+        contentDiv.className = "content";
+        contentDiv.innerHTML = content;
+
+        button.addEventListener("click", function () {
+          this.classList.toggle("active");
+          if (contentDiv.style.display === "block") {
+            contentDiv.style.display = "none";
+          } else {
+            contentDiv.style.display = "block";
+          }
+        });
+
+        const container = document.createElement("div");
+        container.appendChild(button);
+        container.appendChild(contentDiv);
+
+        return container;
+      }
+
+      // Format functions for different data types
+      function formatComputerInfo(info) {
+        if (!info || info.error)
+          return `<p class="error">${info?.error || "No data available"}</p>`;
+
+        return `
+                <table>
+                    <tr><th>Property</th><th>Value</th></tr>
+                    <tr><td>Computer Name</td><td>${
+                      info.computerName || "N/A"
+                    }</td></tr>
+                    <tr><td>User Name</td><td>${
+                      info.userName || "N/A"
+                    }</td></tr>
+                    <tr><td>Domain</td><td>${info.domain || "N/A"}</td></tr>
+                    <tr><td>Number of Processors</td><td>${
+                      info.numberOfProcessors || "N/A"
+                    }</td></tr>
+                    <tr><td>Architecture</td><td>${
+                      info.architecture || "N/A"
+                    }</td></tr>
+                </table>
+            `;
+      }
+
+      function formatSystemPaths(paths) {
+        if (!paths || paths.error)
+          return `<p class="error">${paths?.error || "No data available"}</p>`;
+
+        return `
+                <table>
+                    <tr><th>Path Type</th><th>Location</th></tr>
+                    <tr><td>System Root</td><td>${
+                      paths.systemRoot || "N/A"
+                    }</td></tr>
+                    <tr><td>Program Files</td><td>${
+                      paths.programFiles || "N/A"
+                    }</td></tr>
+                    <tr><td>Temp Directory</td><td>${
+                      paths.tempDir || "N/A"
+                    }</td></tr>
+                </table>
+            `;
+      }
+
+      function formatEnvironment(env) {
+        if (!env || env.error)
+          return `<p class="error">${env?.error || "No data available"}</p>`;
+
+        let html = "";
+        if (env.processor_info) {
+          html += `
+                    <h4>Processor Information</h4>
+                    <table>
+                        <tr><th>Property</th><th>Value</th></tr>
+                        <tr><td>Processor Count</td><td>${
+                          env.processor_info.count || "N/A"
+                        }</td></tr>
+                        <tr><td>Architecture</td><td>${
+                          env.processor_info.architecture || "N/A"
+                        }</td></tr>
+                    </table>
+                `;
+        }
+        if (env.system_info) {
+          html += `
+                    <h4>System Information</h4>
+                    <table>
+                        <tr><th>Property</th><th>Value</th></tr>
+                        <tr><td>Operating System</td><td>${
+                          env.system_info.os || "N/A"
+                        }</td></tr>
+                        <tr><td>Session Name</td><td>${
+                          env.system_info.sessionName || "N/A"
+                        }</td></tr>
+                    </table>
+                `;
+        }
+        return html || "<p>No environment data available</p>";
+      }
+
+      function formatDrives(drives) {
+        if (!drives || drives.error)
+          return `<p class="error">${drives?.error || "No data available"}</p>`;
+        if (!Array.isArray(drives) || drives.length === 0)
+          return "<p>No drives found</p>";
+
+        let html =
+          "<table><tr><th>Drive Letter</th><th>Path</th><th>Status</th></tr>";
+        drives.forEach((drive) => {
+          html += `
+                    <tr>
+                        <td>${drive.letter}</td>
+                        <td>${drive.path || "N/A"}</td>
+                        <td class="status-ok">${
+                          drive.accessible ? "Accessible" : "Not Accessible"
+                        }</td>
+                    </tr>
+                `;
+        });
+        html += "</table>";
+        return html;
+      }
+
+      function formatNetworkBasic(network) {
+        if (!network || network.error)
+          return `<p class="error">${
+            network?.error || "No data available"
+          }</p>`;
+
+        return `
+                <table>
+                    <tr><th>Property</th><th>Value</th></tr>
+                    <tr><td>Computer Name</td><td>${
+                      network.computerName || "N/A"
+                    }</td></tr>
+                    <tr><td>Workgroup/Domain</td><td>${
+                      network.workgroup || "N/A"
+                    }</td></tr>
+                </table>
+            `;
+      }
+
+      function formatSystemProcesses(processes) {
+        if (!processes || processes.error)
+          return `<p class="error">${
+            processes?.error || "No data available"
+          }</p>`;
+        if (!Array.isArray(processes) || processes.length === 0)
+          return "<p>No process information available</p>";
+
+        let html = "<table><tr><th>Process Name</th><th>Status</th></tr>";
+        processes.forEach((proc) => {
+          html += `
+                    <tr>
+                        <td>${proc.name}</td>
+                        <td class="status-ok">${proc.status}</td>
+                    </tr>
+                `;
+        });
+        html += "</table>";
+        return html;
+      }
+
+      function formatWindowsServices(services) {
+        if (!services || services.error)
+          return `<p class="error">${
+            services?.error || "No data available"
+          }</p>`;
+        if (!Array.isArray(services) || services.length === 0)
+          return "<p>No service information available</p>";
+
+        let html = "<table><tr><th>Service Name</th><th>Status</th></tr>";
+        services.forEach((service) => {
+          html += `
+                    <tr>
+                        <td>${service.serviceName}</td>
+                        <td class="status-ok">${service.status}</td>
+                    </tr>
+                `;
+        });
+        html += "</table>";
+        return html;
+      }
+
+      function formatUptime(uptime) {
+        if (!uptime || uptime.error)
+          return `<p class="error">${uptime?.error || "No data available"}</p>`;
+
+        return `
+                <p><strong>System Uptime:</strong> ${uptime.days} days, ${uptime.hours} hours, ${uptime.minutes} minutes</p>
+            `;
+      }
+
+      function formatDisks(disks) {
+        if (!disks || disks.error)
+          return `<p class="error">${disks?.error || "No data available"}</p>`;
+        if (!Array.isArray(disks))
+          return "<p>No disk information available</p>";
+
+        let html =
+          "<table><tr><th>Drive</th><th>File System</th><th>Size</th><th>Free Space</th><th>% Free</th></tr>";
+        disks.forEach((disk) => {
+          html += `
+                    <tr>
+                        <td>${disk.drive}</td>
+                        <td>${disk.fileSystem}</td>
+                        <td>${formatBytes(disk.size)}</td>
+                        <td>${formatBytes(disk.freeSpace)}</td>
+                        <td class="${
+                          disk.percentFree < 10
+                            ? "status-error"
+                            : disk.percentFree < 20
+                            ? "status-warning"
+                            : "status-ok"
+                        }">${disk.percentFree}%</td>
+                    </tr>
+                `;
+        });
+        html += "</table>";
+        return html;
+      }
+
+      function formatProblemDevices(devices) {
+        if (!devices || devices.error)
+          return `<p class="error">${
+            devices?.error || "No data available"
+          }</p>`;
+        if (!Array.isArray(devices) || devices.length === 0)
+          return '<p class="status-ok">No problem devices found</p>';
+
+        let html = "<table><tr><th>Name</th><th>Status</th><th>Class</th></tr>";
+        devices.forEach((device) => {
+          html += `
+                    <tr>
+                        <td>${device.name}</td>
+                        <td class="status-error">${device.status}</td>
+                        <td>${device.class}</td>
+                    </tr>
+                `;
+        });
+        html += "</table>";
+        return html;
+      }
+
+      function formatNetworkAdapters(adapters) {
+        if (!adapters || adapters.error)
+          return `<p class="error">${
+            adapters?.error || "No data available"
+          }</p>`;
+        if (!Array.isArray(adapters) || adapters.length === 0)
+          return "<p>No network adapter information available</p>";
+
+        let html =
+          "<table><tr><th>Name</th><th>MAC Address</th><th>IP Addresses</th><th>DHCP</th><th>DNS Servers</th><th>Gateway</th></tr>";
+        adapters.forEach((adapter) => {
+          const ipAddresses = Array.isArray(adapter.ipAddresses)
+            ? adapter.ipAddresses.join("<br>")
+            : adapter.ipAddresses || "None";
+          const dnsServers = Array.isArray(adapter.dnsServers)
+            ? adapter.dnsServers.join("<br>")
+            : adapter.dnsServers || "N/A";
+          const gateway = Array.isArray(adapter.defaultGateway)
+            ? adapter.defaultGateway.join("<br>")
+            : adapter.defaultGateway || "N/A";
+          const dhcpStatus = adapter.dhcpEnabled ? "Enabled" : "Disabled";
+          const source = adapter.source
+            ? ` <span style="font-size:10px;color:#666;">(${adapter.source})</span>`
+            : "";
+
+          html += `
+                    <tr>
+                        <td>${
+                          adapter.name || adapter.description || "N/A"
+                        }${source}</td>
+                        <td>${adapter.macAddress || "N/A"}</td>
+                        <td>${ipAddresses}</td>
+                        <td>${dhcpStatus}</td>
+                        <td style="font-size:11px;">${dnsServers}</td>
+                        <td>${gateway}</td>
+                    </tr>
+                `;
+        });
+        html += "</table>";
+        return html;
+      }
+
+      function formatWifiProfiles(profiles) {
+        if (!profiles || profiles.error)
+          return `<p class="error">${
+            profiles?.error || "No data available"
+          }</p>`;
+        if (!Array.isArray(profiles) || profiles.length === 0)
+          return "<p>No WiFi profiles found</p>";
+
+        return (
+          "<ul>" +
+          profiles.map((profile) => `<li>${profile}</li>`).join("") +
+          "</ul>"
+        );
+      }
+
+      function formatProcesses(processes) {
+        if (!processes || processes.error)
+          return `<p class="error">${
+            processes?.error || "No data available"
+          }</p>`;
+        if (!Array.isArray(processes))
+          return "<p>No process information available</p>";
+
+        let html =
+          "<table><tr><th>Name</th><th>ID</th><th>Memory (MB)</th><th>CPU</th></tr>";
+        processes.forEach((proc) => {
+          html += `
+                    <tr>
+                        <td>${proc.name}</td>
+                        <td>${proc.id}</td>
+                        <td>${proc.memoryMB}</td>
+                        <td>${proc.cpu || "N/A"}</td>
+                    </tr>
+                `;
+        });
+        html += "</table>";
+        return html;
+      }
+
+      function formatServices(services) {
+        if (!services || services.error)
+          return `<p class="error">${
+            services?.error || "No data available"
+          }</p>`;
+        if (!Array.isArray(services))
+          return "<p>No service information available</p>";
+
+        const runningServices = services
+          .filter((s) => s.status === "Running")
+          .slice(0, 50);
+        const stoppedServices = services
+          .filter((s) => s.status === "Stopped")
+          .slice(0, 20);
+
+        let html = "<h4>Running Services (Top 50)</h4>";
+        html +=
+          "<table><tr><th>Name</th><th>Display Name</th><th>Status</th><th>Start Type</th></tr>";
+        runningServices.forEach((service) => {
+          html += `
+                    <tr>
+                        <td>${service.name}</td>
+                        <td>${service.displayName}</td>
+                        <td class="status-ok">${service.status}</td>
+                        <td>${service.startType}</td>
+                    </tr>
+                `;
+        });
+        html += "</table>";
+
+        html += "<h4>Stopped Services (Sample)</h4>";
+        html +=
+          "<table><tr><th>Name</th><th>Display Name</th><th>Status</th><th>Start Type</th></tr>";
+        stoppedServices.forEach((service) => {
+          html += `
+                    <tr>
+                        <td>${service.name}</td>
+                        <td>${service.displayName}</td>
+                        <td class="status-error">${service.status}</td>
+                        <td>${service.startType}</td>
+                    </tr>
+                `;
+        });
+        html += "</table>";
+        return html;
+      }
+
+      function formatStartup(startup) {
+        if (!startup || startup.error)
+          return `<p class="error">${
+            startup?.error || "No data available"
+          }</p>`;
+        if (!Array.isArray(startup) || startup.length === 0)
+          return "<p>No startup items found</p>";
+
+        let html =
+          "<table><tr><th>Name</th><th>Location</th><th>Value</th></tr>";
+        startup.forEach((item) => {
+          html += `
+                    <tr>
+                        <td>${item.name}</td>
+                        <td>${item.location}</td>
+                        <td style="max-width: 300px; word-break: break-all;">${item.value}</td>
+                    </tr>
+                `;
+        });
+        html += "</table>";
+        return html;
+      }
+
+      function formatSoftware(software) {
+        if (!software || software.error)
+          return `<p class="error">${
+            software?.error || "No data available"
+          }</p>`;
+        if (!Array.isArray(software))
+          return "<p>No software information available</p>";
+
+        let html =
+          "<table><tr><th>Name</th><th>Version</th><th>Publisher</th><th>Install Date</th></tr>";
+        software.forEach((app) => {
+          html += `
+                    <tr>
+                        <td>${app.name}</td>
+                        <td>${app.version || "N/A"}</td>
+                        <td>${app.publisher || "N/A"}</td>
+                        <td>${app.installDate || "N/A"}</td>
+                    </tr>
+                `;
+        });
+        html += "</table>";
+        return html;
+      }
+
+      function formatUpdates(updates) {
+        if (!updates || updates.error)
+          return `<p class="error">${
+            updates?.error || "No data available"
+          }</p>`;
+        if (!Array.isArray(updates))
+          return "<p>No update information available</p>";
+
+        let html =
+          "<table><tr><th>HotFix ID</th><th>Description</th><th>Installed By</th><th>Installed On</th></tr>";
+        updates.forEach((update) => {
+          html += `
+                    <tr>
+                        <td>${update.hotFixId}</td>
+                        <td>${update.description}</td>
+                        <td>${update.installedBy || "N/A"}</td>
+                        <td>${update.installedOn || "N/A"}</td>
+                    </tr>
+                `;
+        });
+        html += "</table>";
+        return html;
+      }
+
+      function formatEvents(events) {
+        if (!events || events.error)
+          return `<p class="error">${events?.error || "No data available"}</p>`;
+        if (!Array.isArray(events) || events.length === 0)
+          return '<p class="status-ok">No critical or error events found</p>';
+
+        let html =
+          "<table><tr><th>Time</th><th>ID</th><th>Level</th><th>Provider</th><th>Message</th></tr>";
+        events.forEach((event) => {
+          html += `
+                    <tr>
+                        <td>${new Date(event.timeCreated).toLocaleString()}</td>
+                        <td>${event.id}</td>
+                        <td class="status-error">${event.level}</td>
+                        <td>${event.provider}</td>
+                        <td style="max-width: 400px; word-break: break-word;">${event.message.substring(
+                          0,
+                          200
+                        )}${event.message.length > 200 ? "..." : ""}</td>
+                    </tr>
+                `;
+        });
+        html += "</table>";
+        return html;
+      }
+
+      function formatBattery(battery) {
+        if (!battery || battery.error)
+          return `<p class="error">${
+            battery?.error || "No data available"
+          }</p>`;
+        if (battery.status === "No battery detected")
+          return "<p>No battery detected (desktop system)</p>";
+
+        return `
+                <table>
+                    <tr><th>Property</th><th>Value</th></tr>
+                    <tr><td>Name</td><td>${battery.name || "N/A"}</td></tr>
+                    <tr><td>Status</td><td>${battery.status || "N/A"}</td></tr>
+                    <tr><td>Charge Remaining</td><td>${
+                      battery.estimatedChargeRemaining || "N/A"
+                    }%</td></tr>
+                    <tr><td>Estimated Runtime</td><td>${
+                      battery.estimatedRunTime || "N/A"
+                    } minutes</td></tr>
+                </table>
+            `;
+      }
+
+      function formatGroupPolicy(gpResult) {
+        if (!gpResult) {
+          return "<p>No Group Policy data</p>";
+        }
+        if (gpResult.error) {
+          return `<p class="error">${gpResult.error}</p>`;
+        }
+
+        // Handle different data types
+        let content = "";
+        if (typeof gpResult === "string") {
+          content = gpResult;
+        } else if (typeof gpResult.content === "string") {
+          content = gpResult.content;
+        } else if (gpResult.content) {
+          // If content exists but isn't a string, try to stringify it
+          content = JSON.stringify(gpResult.content, null, 2);
+        } else if (gpResult.summary) {
+          // Fallback to summary if content not available
+          content = gpResult.summary;
+        } else {
+          return "<p>No Group Policy information available</p>";
+        }
+
+        return `<pre style="max-height: 600px; overflow-y: auto; font-size: 11px;">${escapeHtml(
+          content
+        )}</pre>`;
+      }
+
+      // New format functions for comprehensive data
+      function formatSystemInfo(systemInfo) {
+        if (!systemInfo || systemInfo.error)
+          return `<p class="error">${
+            systemInfo?.error || "No data available"
+          }</p>`;
+
+        return `
+                <table>
+                    <tr><th>Property</th><th>Value</th></tr>
+                    <tr><td>Host Name</td><td>${
+                      systemInfo.hostName || "N/A"
+                    }</td></tr>
+                    <tr><td>OS Name</td><td>${
+                      systemInfo.osName || "N/A"
+                    }</td></tr>
+                    <tr><td>OS Version</td><td>${
+                      systemInfo.osVersion || "N/A"
+                    }</td></tr>
+                    <tr><td>System Manufacturer</td><td>${
+                      systemInfo.manufacturer || "N/A"
+                    }</td></tr>
+                    <tr><td>System Model</td><td>${
+                      systemInfo.model || "N/A"
+                    }</td></tr>
+                    <tr><td>System Type</td><td>${
+                      systemInfo.systemType || "N/A"
+                    }</td></tr>
+                    <tr><td>Total Physical Memory</td><td>${
+                      systemInfo.totalMemory || "N/A"
+                    }</td></tr>
+                </table>
+            `;
+      }
+
+      function formatWindowsBuild(buildInfo) {
+        if (!buildInfo || buildInfo.error)
+          return `<p class="error">${
+            buildInfo?.error || "No data available"
+          }</p>`;
+
+        let html = `
+                <table>
+                    <tr><th>Property</th><th>Value</th></tr>
+                    <tr><td>Full Version</td><td><strong>${
+                      buildInfo.fullVersionString || "N/A"
+                    }</strong></td></tr>
+                    <tr><td>Product Name</td><td>${
+                      buildInfo.productName || "N/A"
+                    }</td></tr>
+                    <tr><td>Version</td><td>${
+                      buildInfo.correctedVersion ||
+                      buildInfo.displayVersion ||
+                      buildInfo.releaseId ||
+                      "N/A"
+                    }</td></tr>
+                    <tr><td>Build Number</td><td>${
+                      buildInfo.currentBuild || buildInfo.buildNumber || "N/A"
+                    }</td></tr>
+                    <tr><td>UBR (Update Build Revision)</td><td>${
+                      buildInfo.ubr || "N/A"
+                    }</td></tr>
+                    <tr><td>Edition</td><td>${
+                      buildInfo.edition || "N/A"
+                    }</td></tr>
+                    <tr><td>Build Lab</td><td style="font-family: monospace; font-size: 11px;">${
+                      buildInfo.buildLabEx || "N/A"
+                    }</td></tr>
+            `;
+
+        // Show detection info if Windows 11 was detected
+        if (buildInfo.isWindows11) {
+          html += `<tr><td colspan="2" style="font-size: 12px; font-style: italic;">
+                    ✓ Windows 11 detected based on build number (${buildInfo.currentBuild}). Registry may show "Windows 10" for compatibility.
+                </td></tr>`;
+        }
+
+        // Show raw vs corrected product name if different
+        if (
+          buildInfo.rawProductName &&
+          buildInfo.rawProductName !== buildInfo.productName
+        ) {
+          html += `<tr><td>Registry Product Name</td><td style="color: #666; font-style: italic;">${buildInfo.rawProductName}</td></tr>`;
+        }
+
+        html += "</table>";
+        return html;
+      }
+
+      function formatLogicalDisks(disks) {
+        if (!disks || disks.error)
+          return `<p class="error">${disks?.error || "No data available"}</p>`;
+        if (!Array.isArray(disks) || disks.length === 0)
+          return "<p>No disk information available</p>";
+
+        let html =
+          "<table><tr><th>Drive</th><th>Type</th><th>File System</th><th>Size</th><th>Free Space</th><th>Volume Name</th></tr>";
+        disks.forEach((disk) => {
+          const size = disk.size ? formatBytes(parseInt(disk.size)) : "N/A";
+          const freeSpace = disk.freeSpace
+            ? formatBytes(parseInt(disk.freeSpace))
+            : "N/A";
+          const freePercent =
+            disk.size && disk.freeSpace
+              ? Math.round((disk.freeSpace / disk.size) * 100)
+              : 0;
+
+          html += `
+                    <tr>
+                        <td>${disk.caption || "N/A"}</td>
+                        <td>${getDriveType(disk.driveType)}</td>
+                        <td>${disk.fileSystem || "N/A"}</td>
+                        <td>${size}</td>
+                        <td class="${
+                          freePercent < 10
+                            ? "status-error"
+                            : freePercent < 20
+                            ? "status-warning"
+                            : "status-ok"
+                        }">${freeSpace} (${freePercent}%)</td>
+                        <td>${disk.volumeName || "N/A"}</td>
+                    </tr>
+                `;
+        });
+        html += "</table>";
+        return html;
+      }
+
+      function formatMountPoints(mountPoints) {
+        if (!mountPoints || mountPoints.error)
+          return `<p class="error">${
+            mountPoints?.error || "No data available"
+          }</p>`;
+        if (mountPoints.content) {
+          return `<pre style="max-height: 400px; overflow-y: auto;">${mountPoints.content}</pre>`;
+        }
+        return "<p>No mount point information available</p>";
+      }
+
+      let installedAppsData = [];
+      let filteredAppsData = [];
+      let currentAppsPage = 1;
+      const appsPerPage = 30;
+
+      function formatInstalledApps(apps) {
+        if (!apps || apps.error)
+          return `<p class="error">${apps?.error || "No data available"}</p>`;
+        if (!Array.isArray(apps) || apps.length === 0)
+          return "<p>No installed applications found</p>";
+
+        // Store the full apps data for pagination and search
+        installedAppsData = apps;
+        filteredAppsData = apps;
+        currentAppsPage = 1;
+
+        let html = `
+                <div class="apps-search-container" style="margin-bottom: 15px;">
+                    <input type="text"
+                           class="search-box"
+                           id="appsSearchBox"
+                           placeholder="Search installed applications..."
+                           style="width: 100%; margin-bottom: 10px;"
+                           onkeyup="searchInstalledApps(this.value)">
+                    <div id="appsSearchInfo" style="font-size: 12px; color: #cdcdcd;"></div>
+                </div>
+                <div id="installedAppsTable"></div>
+                <div id="appsPagination" style="margin-top: 15px; text-align: center;"></div>
+            `;
+
+        // Use setTimeout to render after HTML is inserted
+        setTimeout(() => {
+          renderInstalledAppsTable();
+        }, 0);
+
+        return html;
+      }
+
+      function searchInstalledApps(searchTerm) {
+        if (searchTerm === "") {
+          filteredAppsData = installedAppsData;
+        } else {
+          const lowerSearch = searchTerm.toLowerCase();
+          filteredAppsData = installedAppsData.filter(
+            (app) =>
+              (app.name || "").toLowerCase().includes(lowerSearch) ||
+              (app.version || "").toLowerCase().includes(lowerSearch) ||
+              (app.publisher || "").toLowerCase().includes(lowerSearch)
+          );
+        }
+        currentAppsPage = 1;
+        renderInstalledAppsTable();
+
+        const searchInfo = document.getElementById("appsSearchInfo");
+        if (searchInfo) {
+          if (searchTerm === "") {
+            searchInfo.innerHTML = "";
+          } else {
+            searchInfo.innerHTML = `Found ${filteredAppsData.length} application(s) matching "${searchTerm}"`;
+          }
+        }
+      }
+
+      function renderInstalledAppsTable() {
+        const tableContainer = document.getElementById("installedAppsTable");
+        if (!tableContainer) return;
+
+        const totalPages = Math.ceil(filteredAppsData.length / appsPerPage);
+        const startIdx = (currentAppsPage - 1) * appsPerPage;
+        const endIdx = Math.min(
+          startIdx + appsPerPage,
+          filteredAppsData.length
+        );
+        const pageData = filteredAppsData.slice(startIdx, endIdx);
+
+        let html =
+          "<table><tr><th>Application Name</th><th>Version</th><th>Publisher</th><th>Install Date</th></tr>";
+        pageData.forEach((app) => {
+          html += `
+                    <tr>
+                        <td>${app.name || "N/A"}</td>
+                        <td>${app.version || ""}</td>
+                        <td>${app.publisher || ""}</td>
+                        <td>${app.installDate || ""}</td>
+                    </tr>
+                `;
+        });
+        html += "</table>";
+        html += `<p><em>Showing ${startIdx + 1}-${endIdx} of ${
+          filteredAppsData.length
+        } applications</em></p>`;
+
+        tableContainer.innerHTML = html;
+        renderAppsPagination(totalPages);
+      }
+
+      function renderAppsPagination(totalPages) {
+        const paginationContainer = document.getElementById("appsPagination");
+        if (!paginationContainer || totalPages <= 1) {
+          if (paginationContainer) paginationContainer.innerHTML = "";
+          return;
+        }
+
+        let html =
+          '<div style="display: flex; gap: 5px; justify-content: center; flex-wrap: wrap;">';
+
+        // Previous button
+        if (currentAppsPage > 1) {
+          html += `<button onclick="changeAppsPage(${
+            currentAppsPage - 1
+          })" style="padding: 5px 10px;">Previous</button>`;
+        }
+
+        // Page numbers
+        const maxButtons = 5;
+        let startPage = Math.max(
+          1,
+          currentAppsPage - Math.floor(maxButtons / 2)
+        );
+        let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+
+        if (endPage - startPage < maxButtons - 1) {
+          startPage = Math.max(1, endPage - maxButtons + 1);
+        }
+
+        if (startPage > 1) {
+          html += `<button onclick="changeAppsPage(1)" style="padding: 5px 10px;">1</button>`;
+          if (startPage > 2) html += `<span style="padding: 5px;">...</span>`;
+        }
+
+        for (let i = startPage; i <= endPage; i++) {
+          const activeStyle =
+            i === currentAppsPage
+              ? "background: var(--secondary-color); font-weight: bold;"
+              : "";
+          html += `<button onclick="changeAppsPage(${i})" style="padding: 5px 10px; ${activeStyle}">${i}</button>`;
+        }
+
+        if (endPage < totalPages) {
+          if (endPage < totalPages - 1)
+            html += `<span style="padding: 5px;">...</span>`;
+          html += `<button onclick="changeAppsPage(${totalPages})" style="padding: 5px 10px;">${totalPages}</button>`;
+        }
+
+        // Next button
+        if (currentAppsPage < totalPages) {
+          html += `<button onclick="changeAppsPage(${
+            currentAppsPage + 1
+          })" style="padding: 5px 10px;">Next</button>`;
+        }
+
+        html += "</div>";
+        paginationContainer.innerHTML = html;
+      }
+
+      function changeAppsPage(page) {
+        currentAppsPage = page;
+        renderInstalledAppsTable();
+      }
+
+      function formatHotfixes(hotfixes) {
+        if (!hotfixes || hotfixes.error)
+          return `<p class="error">${
+            hotfixes?.error || "No data available"
+          }</p>`;
+        if (!Array.isArray(hotfixes) || hotfixes.length === 0)
+          return "<p>No hotfixes found</p>";
+
+        let html =
+          "<table><tr><th>HotFix ID</th><th>Description</th><th>Installed By</th><th>Installed On</th></tr>";
+        hotfixes.forEach((hf) => {
+          html += `
+                    <tr>
+                        <td>${hf.hotfixId || "N/A"}</td>
+                        <td>${hf.description || "N/A"}</td>
+                        <td>${hf.installedBy || "N/A"}</td>
+                        <td>${hf.installedOn || "N/A"}</td>
+                    </tr>
+                `;
+        });
+        html += "</table>";
+        return html;
+      }
+
+      function formatStartupPrograms(programs) {
+        if (!programs || programs.error)
+          return `<p class="error">${
+            programs?.error || "No data available"
+          }</p>`;
+        if (!Array.isArray(programs) || programs.length === 0)
+          return "<p>No startup programs found</p>";
+
+        let html = "<table><tr><th>Name</th><th>Command</th></tr>";
+        programs.forEach((prog) => {
+          html += `
+                    <tr>
+                        <td>${prog.name || "N/A"}</td>
+                        <td style="word-break: break-all; max-width: 400px;">${
+                          prog.value || "N/A"
+                        }</td>
+                    </tr>
+                `;
+        });
+        html += "</table>";
+        return html;
+      }
+
+      function formatTopProcesses(processes) {
+        if (!processes || processes.error)
+          return `<p class="error">${
+            processes?.error || "No data available"
+          }</p>`;
+        if (!Array.isArray(processes) || processes.length === 0)
+          return "<p>No process information available</p>";
+
+        let html =
+          "<table><tr><th>Process Name</th><th>PID</th><th>Memory Usage</th></tr>";
+        processes.forEach((proc) => {
+          html += `
+                    <tr>
+                        <td>${proc.name || "N/A"}</td>
+                        <td>${proc.pid || "N/A"}</td>
+                        <td>${proc.memory || "N/A"}</td>
+                    </tr>
+                `;
+        });
+        html += "</table>";
+        return html;
+      }
+
+      function formatAllServices(services) {
+        if (!services || services.error)
+          return `<p class="error">${
+            services?.error || "No data available"
+          }</p>`;
+        if (!Array.isArray(services) || services.length === 0)
+          return "<p>No service information available</p>";
+
+        // Group services by status
+        const running = services.filter(
+          (s) => s.state && s.state.includes("RUNNING")
+        );
+        const stopped = services.filter(
+          (s) => s.state && s.state.includes("STOPPED")
+        );
+        const other = services.filter(
+          (s) =>
+            s.state &&
+            !s.state.includes("RUNNING") &&
+            !s.state.includes("STOPPED")
+        );
+
+        let html = `<h4>Running Services (${running.length})</h4>`;
+        if (running.length > 0) {
+          html += "<table><tr><th>Service Name</th><th>State</th></tr>";
+          running.slice(0, 25).forEach((service) => {
+            html += `
+                        <tr>
+                            <td>${service.name || "N/A"}</td>
+                            <td class="status-ok">${service.state || "N/A"}</td>
+                        </tr>
+                    `;
+          });
+          html += "</table>";
+          if (running.length > 25)
+            html += `<p><em>Showing first 25 of ${running.length} running services</em></p>`;
+        }
+
+        html += `<h4>Stopped Services (${stopped.length})</h4>`;
+        if (stopped.length > 0) {
+          html += "<table><tr><th>Service Name</th><th>State</th></tr>";
+          stopped.slice(0, 15).forEach((service) => {
+            html += `
+                        <tr>
+                            <td>${service.name || "N/A"}</td>
+                            <td class="status-error">${
+                              service.state || "N/A"
+                            }</td>
+                        </tr>
+                    `;
+          });
+          html += "</table>";
+          if (stopped.length > 15)
+            html += `<p><em>Showing first 15 of ${stopped.length} stopped services</em></p>`;
+        }
+
+        if (other.length > 0) {
+          html += `<h4>Other Services (${other.length})</h4>`;
+          html += "<table><tr><th>Service Name</th><th>State</th></tr>";
+          other.slice(0, 10).forEach((service) => {
+            html += `
+                        <tr>
+                            <td>${service.name || "N/A"}</td>
+                            <td class="status-warning">${
+                              service.state || "N/A"
+                            }</td>
+                        </tr>
+                    `;
+          });
+          html += "</table>";
+        }
+
+        return html;
+      }
+
+      function formatScheduledTasks(tasks) {
+        if (!tasks || tasks.error)
+          return `<p class="error">${tasks?.error || "No data available"}</p>`;
+
+        if (tasks.list && Array.isArray(tasks.list)) {
+          let html =
+            "<table><tr><th>Task Name</th><th>Status</th><th>Last Run</th><th>Next Run</th><th>Author</th></tr>";
+          tasks.list.forEach((task) => {
+            html += `
+                        <tr>
+                            <td style="font-family: monospace; font-size: 11px;">${
+                              task.taskName || "N/A"
+                            }</td>
+                            <td class="${
+                              task.status === "Ready"
+                                ? "status-ok"
+                                : task.status === "Running"
+                                ? "status-warning"
+                                : "status-error"
+                            }">${task.status || "N/A"}</td>
+                            <td style="font-size: 11px;">${
+                              task.lastRunTime || "N/A"
+                            }</td>
+                            <td style="font-size: 11px;">${
+                              task.nextRunTime || "N/A"
+                            }</td>
+                            <td style="font-size: 11px;">${
+                              task.author || "N/A"
+                            }</td>
+                        </tr>
+                    `;
+          });
+          html += "</table>";
+          html += `<p><em>Showing first ${tasks.list.length} scheduled tasks</em></p>`;
+          return html;
+        }
+
+        return "<p>No scheduled task information available</p>";
+      }
+
+      function formatNetworkConfig(config) {
+        if (!config) {
+          return "<p>No network configuration data</p>";
+        }
+        if (config.error) {
+          return `<p class="error">${config.error}</p>`;
+        }
+
+        // Handle different data types
+        let content = "";
+        if (typeof config === "string") {
+          content = config;
+        } else if (typeof config.content === "string") {
+          content = config.content;
+        } else if (config.content) {
+          // If content exists but isn't a string, try to stringify it
+          content = JSON.stringify(config.content, null, 2);
+        } else {
+          return "<p>No network configuration available</p>";
+        }
+
+        return `<pre style="max-height: 500px; overflow-y: auto; font-size: 11px;">${escapeHtml(
+          content
+        )}</pre>`;
+      }
+
+      function formatPowerReport(report) {
+        if (!report || report.error)
+          return `<p class="error">${report?.error || "No data available"}</p>`;
+
+        let statusClass = "status-ok";
+        if (report.status === "failed" || report.status === "not_available")
+          statusClass = "status-error";
+        if (report.status === "skipped") statusClass = "status-warning";
+
+        return `
+                <table>
+                    <tr><th>Property</th><th>Value</th></tr>
+                    <tr><td>Status</td><td class="${statusClass}">${
+          report.status || "N/A"
+        }</td></tr>
+                    <tr><td>Details</td><td>${
+                      report.reason || report.file || "N/A"
+                    }</td></tr>
+                </table>
+            `;
+      }
+
+      function formatEvents(events) {
+        if (!events || events.error)
+          return `<p class="error">${events?.error || "No data available"}</p>`;
+        if (!Array.isArray(events) || events.length === 0)
+          return '<p class="status-ok">No critical or error events found in the last 24 hours</p>';
+
+        let html =
+          "<table><tr><th>Time</th><th>Event ID</th><th>Level</th><th>Source</th><th>Message</th></tr>";
+        events.forEach((event) => {
+          if (event.info) {
+            html += `<tr><td colspan="5" class="status-ok">${event.info}</td></tr>`;
+          } else {
+            const time = event.time
+              ? new Date(event.time).toLocaleString()
+              : "N/A";
+            html += `
+                        <tr>
+                            <td>${time}</td>
+                            <td>${event.id || "N/A"}</td>
+                            <td class="status-error">${
+                              event.level || "N/A"
+                            }</td>
+                            <td>${event.source || "N/A"}</td>
+                            <td style="max-width: 300px; word-break: break-word;">${
+                              event.message || "N/A"
+                            }</td>
+                        </tr>
+                    `;
+          }
+        });
+        html += "</table>";
+        return html;
+      }
+
+      function formatEnvironmentVars(env) {
+        if (!env || env.error)
+          return `<p class="error">${env?.error || "No data available"}</p>`;
+
+        return `
+                <table>
+                    <tr><th>Variable</th><th>Value</th></tr>
+                    <tr><td>Number of Processors</td><td>${
+                      env.numberOfProcessors || "N/A"
+                    }</td></tr>
+                    <tr><td>Processor Architecture</td><td>${
+                      env.processorArchitecture || "N/A"
+                    }</td></tr>
+                    <tr><td>Processor Identifier</td><td style="word-break: break-all;">${
+                      env.processorIdentifier || "N/A"
+                    }</td></tr>
+                    <tr><td>Path Extensions</td><td style="word-break: break-all;">${
+                      env.pathExt || "N/A"
+                    }</td></tr>
+                    <tr><td>Command Processor</td><td>${
+                      env.comSpec || "N/A"
+                    }</td></tr>
+                </table>
+            `;
+      }
+
+      function formatUserProfile(profile) {
+        if (!profile || profile.error)
+          return `<p class="error">${
+            profile?.error || "No data available"
+          }</p>`;
+
+        return `
+                <table>
+                    <tr><th>Path Type</th><th>Location</th></tr>
+                    <tr><td>User Profile</td><td>${
+                      profile.userProfile || "N/A"
+                    }</td></tr>
+                    <tr><td>AppData</td><td>${
+                      profile.appData || "N/A"
+                    }</td></tr>
+                    <tr><td>Local AppData</td><td>${
+                      profile.localAppData || "N/A"
+                    }</td></tr>
+                    <tr><td>Program Data</td><td>${
+                      profile.programData || "N/A"
+                    }</td></tr>
+                </table>
+            `;
+      }
+
+      function formatCollectionInfo(info) {
+        if (!info || info.error)
+          return `<p class="error">${info?.error || "No data available"}</p>`;
+
+        let html = `
+                <table>
+                    <tr><th>Property</th><th>Value</th></tr>
+                    <tr><td>Collection Method</td><td>${
+                      info.method || "N/A"
+                    }</td></tr>
+                    <tr><td>Script Version</td><td>${
+                      info.version || "N/A"
+                    }</td></tr>
+                    <tr><td>Description</td><td>${
+                      info.description || "N/A"
+                    }</td></tr>
+                    <tr><td>Temp Directory</td><td>${
+                      info.tempDirectory || "N/A"
+                    }</td></tr>
+                </table>
+            `;
+
+        if (info.additionalFiles && Array.isArray(info.additionalFiles)) {
+          html += "<h4>Additional Files Created:</h4><ul>";
+          info.additionalFiles.forEach((file) => {
+            html += `<li>${file}</li>`;
+          });
+          html += "</ul>";
+        }
+
+        return html;
+      }
+
+      function formatDrivers(drivers) {
+        if (!drivers || drivers.error)
+          return `<p class="error">${
+            drivers?.error || "No data available"
+          }</p>`;
+
+        if (drivers.list && Array.isArray(drivers.list)) {
+          let html =
+            "<table><tr><th>Module Name</th><th>Display Name</th><th>Type</th><th>Start Mode</th><th>State</th><th>Status</th></tr>";
+          drivers.list.forEach((driver) => {
+            html += `
+                        <tr>
+                            <td style="font-family: monospace; font-size: 11px;">${
+                              driver.moduleName || "N/A"
+                            }</td>
+                            <td style="font-size: 11px;">${
+                              driver.displayName || "N/A"
+                            }</td>
+                            <td>${driver.driverType || "N/A"}</td>
+                            <td>${driver.startMode || "N/A"}</td>
+                            <td class="${
+                              driver.state === "Running"
+                                ? "status-ok"
+                                : driver.state === "Stopped"
+                                ? "status-error"
+                                : "status-warning"
+                            }">${driver.state || "N/A"}</td>
+                            <td class="${
+                              driver.status === "OK"
+                                ? "status-ok"
+                                : "status-warning"
+                            }">${driver.status || "N/A"}</td>
+                        </tr>
+                    `;
+          });
+          html += "</table>";
+          html += `<p><em>Showing first ${drivers.list.length} drivers</em></p>`;
+          return html;
+        }
+
+        return "<p>No driver information available</p>";
+      }
+
+      // Helper functions
+      function escapeHtml(text) {
+        if (!text) return "";
+        const div = document.createElement("div");
+        div.textContent = text;
+        return div.innerHTML;
+      }
+
+      function getDriveType(type) {
+        const types = {
+          0: "Unknown",
+          1: "No Root Directory",
+          2: "Removable Disk",
+          3: "Local Disk",
+          4: "Network Drive",
+          5: "Compact Disc",
+          6: "RAM Disk",
+        };
+        return types[type] || `Type ${type}`;
+      }
+
+      function formatBytes(bytes) {
+        if (!bytes || bytes === 0) return "0 Bytes";
+        const k = 1024;
+        const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+      }
+
+      function formatSpeed(speed) {
+        if (!speed) return "Unknown";
+        return formatBytes(speed) + "/s";
+      }
+
+      function storeOriginalContent() {
+        const contentDivs = document.querySelectorAll(".content");
+        contentDivs.forEach((div, index) => {
+          originalSections[index] = div.innerHTML;
+        });
+      }
+
+      // Search functionality
+      function performSearch(searchTerm) {
+        const contentDivs = document.querySelectorAll(".content");
+        const collapsibles = document.querySelectorAll(".collapsible");
+        const sections = document.querySelectorAll(".section");
+        let totalMatches = 0;
+        let sectionsWithMatches = 0;
+
+        if (searchTerm === "") {
+          // Restore original content and hide all sections
+          contentDivs.forEach((div, index) => {
+            div.innerHTML = originalSections[index];
+            div.style.display = "none";
+            collapsibles[index].classList.remove("has-matches");
+            collapsibles[index].style.display = ""; // Show all collapsible buttons
+          });
+          // Show all h2 section headers
+          sections.forEach((section) => {
+            section.style.display = "";
+          });
+          document.getElementById("searchStats").innerHTML = "";
+          // Re-initialize pre search elements
+          initializePreSearchElements();
+          return;
+        }
+
+        // Track which sections have matches
+        const sectionMatchMap = new Map();
+
+        contentDivs.forEach((div, index) => {
+          const originalHtml = originalSections[index];
+          const textContent = div.textContent || div.innerText || "";
+          const parentSection = collapsibles[index].closest(".section");
+
+          if (
+            textContent.toLowerCase().indexOf(searchTerm.toLowerCase()) !== -1
+          ) {
+            // Create regex for highlighting
+            const escapedTerm = searchTerm.replace(
+              /[.*+?^${}()|[\]\\]/g,
+              "\\$&"
+            );
+            const regex = new RegExp(`(${escapedTerm})`, "gi");
+
+            // Highlight matches in HTML
+            const highlightedHtml = originalHtml.replace(
+              regex,
+              '<span class="highlight">$1</span>'
+            );
+            div.innerHTML = highlightedHtml;
+            div.style.display = "block";
+            collapsibles[index].classList.add("has-matches");
+            collapsibles[index].style.display = ""; // Show collapsible button
+
+            // Mark this section as having matches
+            if (parentSection) {
+              sectionMatchMap.set(parentSection, true);
+            }
+
+            // Count matches
+            const matches = (
+              textContent.match(new RegExp(escapedTerm, "gi")) || []
+            ).length;
+            totalMatches += matches;
+            sectionsWithMatches++;
+          } else {
+            // Hide both content and collapsible button for non-matching sections
+            div.innerHTML = originalHtml;
+            div.style.display = "none";
+            collapsibles[index].classList.remove("has-matches");
+            collapsibles[index].style.display = "none"; // Hide collapsible button
+          }
+        });
+
+        // Hide h2 sections that have no matching subsections
+        sections.forEach((section) => {
+          if (sectionMatchMap.get(section)) {
+            section.style.display = "";
+          } else {
+            section.style.display = "none";
+          }
+        });
+
+        document.getElementById(
+          "searchStats"
+        ).innerHTML = `${totalMatches} matches in ${sectionsWithMatches} sections`;
+
+        // Re-initialize pre search elements after search modifies DOM
+        initializePreSearchElements();
+      }
+
+      function clearSearch() {
+        const searchBox = document.getElementById("searchBox");
+        const clearBtn = document.getElementById("clearSearchBtn");
+        searchBox.value = "";
+        clearBtn.classList.remove("visible");
+        performSearch("");
+      }
+
+      // Add search event listener
+      const searchBox = document.getElementById("searchBox");
+      const clearBtn = document.getElementById("clearSearchBtn");
+
+      searchBox.addEventListener("input", function () {
+        performSearch(this.value);
+        // Show/hide clear button based on input
+        if (this.value.length > 0) {
+          clearBtn.classList.add("visible");
+        } else {
+          clearBtn.classList.remove("visible");
+        }
+      });
+
+      // Toast Notification System
+      function showToast(title, message, type = "info", duration = 5000) {
+        const container = document.getElementById("toastContainer");
+        const toast = document.createElement("div");
+        toast.className = `toast ${type}`;
+
+        const icons = {
+          success: "✓",
+          error: "✕",
+          info: "ℹ",
+          warning: "⚠",
+        };
+
+        toast.innerHTML = `
+          <div class="toast-icon">${icons[type] || icons.info}</div>
+          <div class="toast-content">
+            <div class="toast-title">${title}</div>
+            <div class="toast-message">${message}</div>
+          </div>
+          <button class="toast-close" onclick="closeToast(this)">×</button>
+        `;
+
+        container.appendChild(toast);
+
+        if (duration > 0) {
+          setTimeout(() => {
+            closeToast(toast.querySelector(".toast-close"));
+          }, duration);
+        }
+      }
+
+      function closeToast(button) {
+        const toast = button.parentElement;
+        toast.classList.add("removing");
+        setTimeout(() => {
+          toast.remove();
+        }, 300);
+      }
+
+      // Pre-section Search Functionality
+      let activePreSearch = null;
+      let preSearchMatches = [];
+      let currentPreMatchIndex = 0;
+      let originalPreContent = "";
+
+      function createPreSearchButton() {
+        const button = document.createElement("button");
+        button.className = "pre-search-trigger";
+        button.innerHTML = "🔍 Search";
+        button.title = "Search in this section";
+        return button;
+      }
+
+      function createPreSearchBar(preElement) {
+        const searchBar = document.createElement("div");
+        searchBar.className = "pre-search-bar";
+        searchBar.innerHTML = `
+          <div class="pre-search-input-row">
+            <input type="text" class="pre-search-input" placeholder="Search in this section...">
+            <div class="pre-search-nav">
+              <button class="pre-search-btn pre-search-prev" title="Previous">▲</button>
+              <button class="pre-search-btn pre-search-next" title="Next">▼</button>
+            </div>
+            <button class="pre-search-btn pre-search-close" title="Close (ESC)">✕</button>
+          </div>
+          <div class="pre-search-info"></div>
+        `;
+        return searchBar;
+      }
+
+      function setupPreSearchable(preElement) {
+        // Check if wrapper and UI already exist (prevent duplicates)
+        const alreadyWrapped = preElement.parentElement.classList.contains(
+          "pre-search-container"
+        );
+        const hasSearchButton =
+          alreadyWrapped &&
+          preElement.parentElement.querySelector(".pre-search-trigger");
+
+        if (alreadyWrapped && hasSearchButton) {
+          // Already set up, just update the original content in case main search modified it
+          preElement.dataset.originalContent = preElement.textContent;
+          return;
+        }
+
+        // Wrap pre element in container if not already wrapped
+        if (!alreadyWrapped) {
+          const container = document.createElement("div");
+          container.className = "pre-search-container";
+          preElement.parentNode.insertBefore(container, preElement);
+          container.appendChild(preElement);
+        }
+
+        const container = preElement.parentElement;
+
+        // Add search button
+        const searchButton = createPreSearchButton();
+        container.insertBefore(searchButton, preElement);
+
+        // Add search bar
+        const searchBar = createPreSearchBar(preElement);
+        container.insertBefore(searchBar, preElement);
+
+        // Store original content
+        preElement.dataset.originalContent = preElement.textContent;
+
+        const input = searchBar.querySelector(".pre-search-input");
+        const prevBtn = searchBar.querySelector(".pre-search-prev");
+        const nextBtn = searchBar.querySelector(".pre-search-next");
+        const closeBtn = searchBar.querySelector(".pre-search-close");
+
+        // Search button click
+        searchButton.addEventListener("click", () => {
+          searchButton.classList.add("active");
+          searchBar.classList.add("active");
+          activePreSearch = { preElement, searchBar, searchButton };
+          setTimeout(() => input.focus(), 100);
+        });
+
+        // Search on input
+        input.addEventListener("input", () => {
+          performPreSearch(preElement, input.value, searchBar);
+        });
+
+        // Navigation
+        prevBtn.addEventListener("click", () =>
+          navigatePreMatches(preElement, -1, searchBar)
+        );
+        nextBtn.addEventListener("click", () =>
+          navigatePreMatches(preElement, 1, searchBar)
+        );
+
+        // Close search
+        closeBtn.addEventListener("click", () =>
+          closePreSearch(preElement, searchBar, searchButton)
+        );
+
+        // ESC to close
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Escape") {
+            closePreSearch(preElement, searchBar, searchButton);
+          } else if (e.key === "Enter") {
+            e.preventDefault();
+            navigatePreMatches(preElement, e.shiftKey ? -1 : 1, searchBar);
+          }
+        });
+      }
+
+      function performPreSearch(preElement, searchTerm, searchBar) {
+        const infoDiv = searchBar.querySelector(".pre-search-info");
+
+        if (!searchTerm) {
+          // Restore original content
+          preElement.textContent = preElement.dataset.originalContent;
+          infoDiv.textContent = "";
+          preSearchMatches = [];
+          return;
+        }
+
+        const originalText = preElement.dataset.originalContent;
+        const escapedTerm = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const regex = new RegExp(escapedTerm, "gi");
+
+        // Find all matches
+        preSearchMatches = [];
+        let match;
+        while ((match = regex.exec(originalText)) !== null) {
+          preSearchMatches.push(match.index);
+        }
+
+        if (preSearchMatches.length === 0) {
+          infoDiv.textContent = "No matches found";
+          preElement.textContent = originalText;
+          return;
+        }
+
+        // Highlight matches
+        currentPreMatchIndex = 0;
+        highlightPreMatches(preElement, originalText, searchTerm);
+        updatePreSearchInfo(searchBar);
+      }
+
+      function highlightPreMatches(preElement, text, searchTerm) {
+        const escapedTerm = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const regex = new RegExp(`(${escapedTerm})`, "gi");
+
+        let highlighted = text;
+        let matchIndex = 0;
+
+        highlighted = highlighted.replace(regex, (match) => {
+          const isCurrent = matchIndex === currentPreMatchIndex;
+          matchIndex++;
+          if (isCurrent) {
+            return `<span class="pre-search-current">${escapeHtml(
+              match
+            )}</span>`;
+          }
+          return `<span class="pre-search-highlight">${escapeHtml(
+            match
+          )}</span>`;
+        });
+
+        preElement.innerHTML = highlighted;
+
+        // Scroll current match into view
+        const currentMatch = preElement.querySelector(".pre-search-current");
+        if (currentMatch) {
+          currentMatch.scrollIntoView({ block: "center", behavior: "smooth" });
+        }
+      }
+
+      function navigatePreMatches(preElement, direction, searchBar) {
+        if (preSearchMatches.length === 0) return;
+
+        currentPreMatchIndex += direction;
+        if (currentPreMatchIndex < 0)
+          currentPreMatchIndex = preSearchMatches.length - 1;
+        if (currentPreMatchIndex >= preSearchMatches.length)
+          currentPreMatchIndex = 0;
+
+        const input = searchBar.querySelector(".pre-search-input");
+        const searchTerm = input.value;
+
+        highlightPreMatches(
+          preElement,
+          preElement.dataset.originalContent,
+          searchTerm
+        );
+        updatePreSearchInfo(searchBar);
+      }
+
+      function updatePreSearchInfo(searchBar) {
+        const infoDiv = searchBar.querySelector(".pre-search-info");
+        if (preSearchMatches.length > 0) {
+          infoDiv.textContent = `Match ${currentPreMatchIndex + 1} of ${
+            preSearchMatches.length
+          }`;
+        } else {
+          infoDiv.textContent = "";
+        }
+      }
+
+      function closePreSearch(preElement, searchBar, searchButton) {
+        searchBar.classList.remove("active");
+        searchButton.classList.remove("active");
+        preElement.textContent = preElement.dataset.originalContent;
+        activePreSearch = null;
+        preSearchMatches = [];
+        const input = searchBar.querySelector(".pre-search-input");
+        input.value = "";
+        searchBar.querySelector(".pre-search-info").textContent = "";
+      }
+
+      // Setup searchable pre elements after data is loaded
+      function initializePreSearchElements() {
+        // Wait a bit for DOM to update
+        setTimeout(() => {
+          document.querySelectorAll("pre").forEach((pre) => {
+            // Only add search to pre elements with significant content
+            if (pre.textContent.length > 100) {
+              setupPreSearchable(pre);
+            }
+          });
+        }, 500);
+      }
+
+      // ============================================================================
+      // REMOTE ACTIONS - WISP Companion API Integration
+      // ============================================================================
+
+      // WISP Companion API Configuration
+      const WISP_CONFIG = {
+        apiUrl: "http://127.0.0.1:8765",
+        token: "", // Will be loaded from server on page load
+      };
+
+      /**
+       * Load configuration from WISP Companion server
+       */
+      async function loadWispConfig() {
+        console.log("[Config] Loading WISP configuration from server...");
+
+        try {
+          const response = await fetch(`${WISP_CONFIG.apiUrl}/config`, {
+            method: "GET",
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+
+          const config = await response.json();
+
+          if (config.success && config.token) {
+            WISP_CONFIG.token = config.token;
+            WISP_CONFIG.apiUrl = config.apiUrl;
+            console.log("[Config] Configuration loaded successfully");
+            console.log("[Config] API URL:", WISP_CONFIG.apiUrl);
+            return true;
+          } else {
+            throw new Error("Invalid config response");
+          }
+        } catch (error) {
+          console.error("[Config] Failed to load configuration:", error);
+          console.error(
+            "[Config] Please ensure WISP Companion service is running"
+          );
+          return false;
+        }
+      }
+
+      /**
+       * Check WISP Companion connection status
+       */
+      async function checkConnectionStatus() {
+        const indicator = document.getElementById("statusIndicator");
+        const statusText = document.getElementById("statusText");
+
+        try {
+          const response = await fetch(`${WISP_CONFIG.apiUrl}/health`, {
+            method: "GET",
+            signal: AbortSignal.timeout(3000), // 3 second timeout
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.status === "healthy") {
+              indicator.className = "status-indicator connected";
+              statusText.textContent = "Connected";
+              statusText.style.color = "#00ff88";
+              console.log("[Connection] WISP Companion is connected");
+              return true;
+            }
+          }
+
+          throw new Error("Unhealthy response");
+        } catch (error) {
+          indicator.className = "status-indicator disconnected";
+          statusText.textContent = "Disconnected";
+          statusText.style.color = "#ff4444";
+          console.warn(
+            "[Connection] WISP Companion is disconnected:",
+            error.message
+          );
+          return false;
+        }
+      }
+
+      /**
+       * Start connection status monitoring
+       */
+      function startConnectionMonitoring() {
+        // Check immediately on load
+        checkConnectionStatus();
+
+        // Then check every 5 seconds
+        setInterval(checkConnectionStatus, 5000);
+      }
+
+      /**
+       * Initialize WISP Companion integration
+       */
+      async function initializeWisp() {
+        // Load configuration from server
+        await loadWispConfig();
+
+        // Start connection monitoring
+        startConnectionMonitoring();
+      }
+
+      // Initialize when page loads
+      window.addEventListener("DOMContentLoaded", initializeWisp);
+
+      /**
+       * Execute a remote task on target host
+       */
+      async function runRemoteTask(taskName) {
+        const targetHost = document
+          .getElementById("targetHostInput")
+          .value.trim();
+        const statusDiv = document.getElementById("remoteActionStatus");
+
+        console.log(
+          `[runRemoteTask] Starting task: ${taskName} on host: ${targetHost}`
+        );
+
+        // Validate inputs
+        if (!targetHost) {
+          console.error("[runRemoteTask] No target hostname provided");
+          showRemoteActionStatus(
+            "error",
+            "Please enter a target hostname or IP address"
+          );
+          return;
+        }
+
+        if (!WISP_CONFIG.token) {
+          console.error("[runRemoteTask] WISP token not configured");
+          showRemoteActionStatus(
+            "error",
+            "WISP token not configured. Please set WISP_CONFIG.token in the HTML file."
+          );
+          return;
+        }
+
+        // Show loading state with spinner
+        console.log(
+          `[runRemoteTask] Sending request to: ${WISP_CONFIG.apiUrl}/run-sync/${taskName}/${targetHost}`
+        );
+        showRemoteActionStatus(
+          "loading",
+          `Running ${taskName} on ${targetHost}... This may take a few minutes.`
+        );
+
+        try {
+          const response = await fetch(
+            `${WISP_CONFIG.apiUrl}/run-sync/${taskName}/${targetHost}`,
+            {
+              method: "POST",
+              headers: {
+                "X-WISP-Token": WISP_CONFIG.token,
+                "Content-Type": "application/json",
+              },
+            }
+          );
+
+          console.log(
+            `[runRemoteTask] Response status: ${response.status} ${response.statusText}`
+          );
+
+          if (!response.ok) {
+            console.error(
+              `[runRemoteTask] HTTP error! status: ${response.status}`
+            );
+            const errorText = await response.text();
+            console.error(`[runRemoteTask] Error response: ${errorText}`);
+            showRemoteActionStatus(
+              "error",
+              `HTTP ${response.status}: ${response.statusText}`
+            );
+            showToast(
+              "Remote Task Failed",
+              `HTTP ${response.status}: ${response.statusText}`,
+              "error",
+              5000
+            );
+            return;
+          }
+
+          const result = await response.json();
+          console.log("[runRemoteTask] Response data:", result);
+
+          if (result.success) {
+            console.log(`[runRemoteTask] Task completed successfully`);
+            const successMsg = `Task '${taskName}' completed successfully on ${targetHost}`;
+            showRemoteActionStatus("success", successMsg);
+            showToast("Task Complete", successMsg, "success", 5000);
+
+            // If this was a system-report task, automatically load the generated report
+            if (taskName === "system-report") {
+              setTimeout(async () => {
+                showRemoteActionStatus(
+                  "loading",
+                  "Loading generated report..."
+                );
+                try {
+                  await loadLatestReport(targetHost);
+                } catch (error) {
+                  console.error(
+                    "[runRemoteTask] Failed to auto-load report:",
+                    error
+                  );
+                  showRemoteActionStatus(
+                    "info",
+                    "Report generated! You can manually load the JSON file from the reports folder below."
+                  );
+                }
+              }, 1000);
+            }
+          } else {
+            console.error(`[runRemoteTask] Task failed: ${result.error}`);
+            showRemoteActionStatus(
+              "error",
+              result.error || "Task execution failed"
+            );
+            showToast(
+              "Remote Task Failed",
+              result.error || "Task execution failed",
+              "error",
+              5000
+            );
+          }
+        } catch (error) {
+          console.error("[runRemoteTask] Exception caught:", error);
+          console.error("[runRemoteTask] Error stack:", error.stack);
+
+          const errorMsg = error.message.includes("Failed to fetch")
+            ? "Cannot connect to WISP Companion service. Is it running on http://127.0.0.1:8765?"
+            : error.message;
+
+          console.error(`[runRemoteTask] Final error message: ${errorMsg}`);
+          showRemoteActionStatus("error", errorMsg);
+          showToast("Connection Error", errorMsg, "error", 5000);
+        }
+      }
+
+      /**
+       * Load the latest report for a given host
+       */
+      async function loadLatestReport(hostname) {
+        console.log(
+          `[loadLatestReport] Fetching latest report for: ${hostname}`
+        );
+
+        try {
+          const response = await fetch(
+            `${WISP_CONFIG.apiUrl}/reports/${hostname}/latest`,
+            {
+              method: "GET",
+              headers: {
+                "X-WISP-Token": WISP_CONFIG.token,
+              },
+            }
+          );
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+
+          const result = await response.json();
+          console.log("[loadLatestReport] Received report data:", result);
+
+          if (result.success && result.report) {
+            // Load the report data into the viewer
+            loadSystemData(result.report);
+
+            showRemoteActionStatus(
+              "success",
+              `Report for ${hostname} loaded successfully! Scroll down to view details.`
+            );
+            showToast(
+              "Report Loaded",
+              `System report for ${hostname} is now displayed below`,
+              "success",
+              5000
+            );
+
+            // Scroll to the report content
+            setTimeout(() => {
+              const reportContent = document.getElementById("reportContent");
+              if (reportContent) {
+                reportContent.scrollIntoView({
+                  behavior: "smooth",
+                  block: "start",
+                });
+              }
+            }, 500);
+          } else {
+            throw new Error(result.error || "Failed to load report");
+          }
+        } catch (error) {
+          console.error("[loadLatestReport] Error:", error);
+          throw error;
+        }
+      }
+
+      /**
+       * Display status message in Remote Actions section
+       */
+      function showRemoteActionStatus(type, message) {
+        const statusDiv = document.getElementById("remoteActionStatus");
+        const colors = {
+          success: "var(--accent-color)",
+          error: "#ff6b6b",
+          info: "var(--secondary-color)",
+          loading: "var(--secondary-color)",
+        };
+
+        const icons = {
+          success: "✅",
+          error: "❌",
+          info: "⏳",
+          loading: `<div class="spinner"></div>`,
+        };
+
+        statusDiv.style.display = "block";
+        statusDiv.style.background = "rgba(0, 0, 0, 0.3)";
+        statusDiv.style.borderLeft = `4px solid ${colors[type]}`;
+        statusDiv.innerHTML = `
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 20px;">${icons[type]}</span>
+            <div>
+              <div style="font-weight: 600; color: ${
+                colors[type]
+              }; text-transform: uppercase; font-size: 11px; margin-bottom: 5px;">
+                ${type === "loading" ? "RUNNING" : type.toUpperCase()}
+              </div>
+              <div style="color: var(--color-font);">
+                ${message}
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      /**
+       * Check WISP Companion service health
+       */
+      async function checkWispService() {
+        try {
+          const response = await fetch(`${WISP_CONFIG.apiUrl}/health`);
+          const result = await response.json();
+
+          if (result.success) {
+            showToast(
+              "WISP Service",
+              "WISP Companion service is healthy",
+              "success",
+              3000
+            );
+            return true;
+          }
+        } catch (error) {
+          showToast(
+            "WISP Service",
+            "Cannot connect to WISP Companion service",
+            "error",
+            5000
+          );
+          return false;
+        }
+      }
+
+      /**
+       * Load available tasks from WISP Companion
+       */
+      async function loadAvailableTasks() {
+        if (!WISP_CONFIG.token) return;
+
+        try {
+          const response = await fetch(`${WISP_CONFIG.apiUrl}/tasks`, {
+            headers: {
+              "X-WISP-Token": WISP_CONFIG.token,
+            },
+          });
+
+          const result = await response.json();
+
+          if (result.success) {
+            console.log("Available WISP tasks:", result.tasks);
+            return result.tasks;
+          }
+        } catch (error) {
+          console.error("Failed to load tasks:", error);
+        }
+      }
+
+      // ============================================================================
+      // Quick Actions Functions
+      // ============================================================================
+
+      function runSystemReport() {
+        showToast(
+          "System Report",
+          "Starting system report generation...",
+          "info",
+          0
+        );
+
+        try {
+          // Use Windows Script Host to execute SystemReport.bat
+          var shell = new ActiveXObject("WScript.Shell");
+          var scriptDir = window.location.pathname.substring(
+            0,
+            window.location.pathname.lastIndexOf("/")
+          );
+          var batPath = scriptDir.replace(/\//g, "\\") + "\\SystemReport.bat";
+
+          // Execute with option 1 (local computer) using echo command
+          shell.Run('cmd /c echo 1 | "' + batPath + '"', 1, false);
+
+          // Close the "Starting..." toast after a short delay
+          setTimeout(() => {
+            const toasts = document.querySelectorAll(".toast");
+            toasts.forEach((t) => {
+              if (t.textContent.includes("Starting system report")) {
+                closeToast(t.querySelector(".toast-close"));
+              }
+            });
+            showToast(
+              "Report Running",
+              "System report is being generated. This will take 3-5 minutes. The report will auto-load when complete.",
+              "info",
+              5000
+            );
+          }, 1000);
+
+          // Poll for the latest report file every 5 seconds
+          const pollInterval = setInterval(() => {
+            checkForNewReport(pollInterval);
+          }, 5000);
+        } catch (error) {
+          // Close the "Starting..." toast
+          const toasts = document.querySelectorAll(".toast");
+          toasts.forEach((t) => {
+            if (t.textContent.includes("Starting system report")) {
+              closeToast(t.querySelector(".toast-close"));
+            }
+          });
+
+          showToast(
+            "Error",
+            "Failed to execute SystemReport.bat. Make sure to open this file in Internet Explorer or allow ActiveX controls.",
+            "error",
+            10000
+          );
+          console.error("Error executing SystemReport.bat:", error);
+        }
+      }
+
+      function checkForNewReport(pollInterval) {
+        try {
+          var fso = new ActiveXObject("Scripting.FileSystemObject");
+          var scriptDir = window.location.pathname.substring(
+            0,
+            window.location.pathname.lastIndexOf("/")
+          );
+          var reportsDir = scriptDir.replace(/\//g, "\\") + "\\reports";
+
+          if (!fso.FolderExists(reportsDir)) {
+            return;
+          }
+
+          var folder = fso.GetFolder(reportsDir);
+          var subfolders = new Enumerator(folder.SubFolders);
+
+          var latestFolder = null;
+          var latestDate = new Date(0);
+
+          for (; !subfolders.atEnd(); subfolders.moveNext()) {
+            var subfolder = subfolders.item();
+            if (subfolder.DateLastModified > latestDate) {
+              latestDate = subfolder.DateLastModified;
+              latestFolder = subfolder;
+            }
+          }
+
+          if (latestFolder) {
+            var reportPath = latestFolder.Path + "\\comprehensive_report.json";
+
+            if (fso.FileExists(reportPath)) {
+              var reportFile = fso.GetFile(reportPath);
+
+              // Check if file was modified in the last 10 seconds (recently created)
+              var now = new Date();
+              var timeDiff = (now - reportFile.DateLastModified) / 1000; // in seconds
+
+              if (timeDiff < 10) {
+                clearInterval(pollInterval);
+                loadReportFile(reportPath);
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Error checking for new report:", error);
+        }
+      }
+
+      function loadReportFile(filePath) {
+        try {
+          showToast(
+            "Loading Report",
+            "Loading generated report...",
+            "info",
+            2000
+          );
+
+          var fso = new ActiveXObject("Scripting.FileSystemObject");
+          var file = fso.OpenTextFile(filePath, 1); // 1 = ForReading
+          var content = file.ReadAll();
+          file.Close();
+
+          var data = JSON.parse(content);
+          loadSystemData(data);
+
+          showToast(
+            "Success",
+            "System report loaded successfully!",
+            "success",
+            3000
+          );
+        } catch (error) {
+          showToast(
+            "Error",
+            "Failed to load the generated report: " + error.message,
+            "error",
+            5000
+          );
+          console.error("Error loading report:", error);
+        }
+      }
+
+      function runGPUpdate() {
+        showToast("GPUpdate", "Running gpupdate /force...", "info", 0);
+
+        try {
+          var shell = new ActiveXObject("WScript.Shell");
+          shell.Run("gpupdate /force", 1, true); // 1 = show window, true = wait for completion
+
+          // Close the "Running..." toast
+          const toasts = document.querySelectorAll(".toast");
+          toasts.forEach((t) => {
+            if (t.textContent.includes("Running gpupdate")) {
+              closeToast(t.querySelector(".toast-close"));
+            }
+          });
+
+          showToast(
+            "Success",
+            "GPUpdate completed successfully",
+            "success",
+            3000
+          );
+        } catch (error) {
+          // Close the "Running..." toast
+          const toasts = document.querySelectorAll(".toast");
+          toasts.forEach((t) => {
+            if (t.textContent.includes("Running gpupdate")) {
+              closeToast(t.querySelector(".toast-close"));
+            }
+          });
+
+          showToast(
+            "Error",
+            "Failed to run gpupdate: " + error.message,
+            "error",
+            5000
+          );
+          console.error("Error running gpupdate:", error);
+        }
+      }
+    </script>
+  </body>
+</html>
