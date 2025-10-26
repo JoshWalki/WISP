@@ -3,11 +3,11 @@
  * Secure wrapper for PsExec remote execution
  */
 
-const { spawn } = require('child_process');
-const fs = require('fs');
-const path = require('path');
-const config = require('./config');
-const { logExecution, logError } = require('./logger');
+const { spawn } = require("child_process");
+const fs = require("fs");
+const path = require("path");
+const config = require("./config");
+const { logExecution, logError } = require("./logger");
 
 /**
  * Check if PsExec exists
@@ -20,6 +20,44 @@ function checkPsExec() {
 }
 
 /**
+ * Get human-readable error message for PsExec exit codes
+ */
+function getPsExecErrorMessage(exitCode, stderr) {
+  const errorMessages = {
+    0: "Success",
+    1: "General error",
+    2: "Access denied - Check credentials and admin rights",
+    5: "Access denied - Check credentials, firewall, and admin$ share",
+    6: "Access denied - Authentication failure",
+    53: "Network path not found - Check hostname/IP and network connectivity",
+    64: "Network name not found - Target host unreachable",
+    67: "Network name limit exceeded",
+    1219: "Multiple connections to a server using more than one username are not allowed",
+    1326: "Invalid username or password",
+    1327: "Account restrictions prevent login",
+    1396: "Login failure - Check credentials",
+    1722: "RPC server unavailable - Check firewall and Windows Remote Management settings",
+  };
+
+  const baseMessage =
+    errorMessages[exitCode] || `Unknown PsExec error (exit code ${exitCode})`;
+
+  if (exitCode === 6) {
+    const hasCredentials = config.psexec.credentials.username;
+
+    if (hasCredentials) {
+      return `${baseMessage}. The provided credentials are invalid or do not have admin rights on the target machine.`;
+    } else {
+      return `${baseMessage}. The service account does not have admin rights on the target machine. Either:\n` +
+             `1. Run the service as a domain admin account, OR\n` +
+             `2. Configure explicit credentials in .env (PSEXEC_USERNAME, PSEXEC_PASSWORD)`;
+    }
+  }
+
+  return baseMessage;
+}
+
+/**
  * Build PsExec command arguments
  */
 function buildPsExecArgs(hostname, task) {
@@ -28,43 +66,67 @@ function buildPsExecArgs(hostname, task) {
   // Target hostname
   args.push(`\\\\${hostname}`);
 
+  // Add credentials if configured
+  // If not provided, PsExec will use the current user's credentials (domain admin context)
+  if (config.psexec.credentials.username) {
+    // Domain\Username or just Username
+    const username = config.psexec.credentials.domain
+      ? `${config.psexec.credentials.domain}\\${config.psexec.credentials.username}`
+      : config.psexec.credentials.username;
+
+    args.push("-u", username);
+
+    if (config.psexec.credentials.password) {
+      args.push("-p", config.psexec.credentials.password);
+    }
+  }
+
   // Accept EULA automatically
   if (config.psexec.acceptEula) {
-    args.push('-accepteula');
+    args.push("-accepteula");
   }
 
   // Run with elevated privileges if needed
-  if (task.runAs === 'admin') {
-    args.push('-h'); // Run with elevated token
+  if (task.runAs === "admin") {
+    args.push("-h"); // Run with elevated token
   }
 
-  // Run in background (no interaction)
-  args.push('-d');
+  // Run in background (no interaction) - unless task requires interactive mode
+  // Interactive mode is needed for tasks like shutdown that display messages to users
+  if (!task.interactive) {
+    args.push("-d");
+  }
 
   // Add script/command and its arguments
-  if (task.script.endsWith('.bat') || task.script.endsWith('.ps1')) {
+  if (task.script.endsWith(".bat") || task.script.endsWith(".ps1")) {
     // Full path to script
     const scriptPath = path.join(config.scripts.allowedPath, task.script);
 
     // Verify script exists and is in allowed directory
     if (!scriptPath.startsWith(config.scripts.allowedPath)) {
-      throw new Error('Script path traversal attempt detected');
+      throw new Error("Script path traversal attempt detected");
     }
 
     if (!fs.existsSync(scriptPath)) {
       throw new Error(`Script not found: ${scriptPath}`);
     }
 
-    if (task.script.endsWith('.bat')) {
-      args.push('cmd.exe', '/c', scriptPath);
+    if (task.script.endsWith(".bat")) {
+      args.push("cmd.exe", "/c", scriptPath);
       // Add hostname as first argument to batch scripts
       args.push(hostname);
       // Add any additional task-specific arguments
       if (task.args && task.args.length > 0) {
         args.push(...task.args);
       }
-    } else if (task.script.endsWith('.ps1')) {
-      args.push('powershell.exe', '-ExecutionPolicy', 'Bypass', '-File', scriptPath);
+    } else if (task.script.endsWith(".ps1")) {
+      args.push(
+        "powershell.exe",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        scriptPath
+      );
       // Add hostname as first argument to PowerShell scripts
       args.push(hostname);
       // Add any additional task-specific arguments
@@ -87,23 +149,23 @@ function buildPsExecArgs(hostname, task) {
  * Execute task locally without PsExec
  */
 async function executeLocalTask(taskName, task, metadata = {}) {
-  const hostname = require('os').hostname();
+  const hostname = require("os").hostname();
 
   let command, args;
 
-  if (task.script.endsWith('.bat') || task.script.endsWith('.ps1')) {
+  if (task.script.endsWith(".bat") || task.script.endsWith(".ps1")) {
     const scriptPath = path.join(config.scripts.allowedPath, task.script);
 
     if (!fs.existsSync(scriptPath)) {
       throw new Error(`Script not found: ${scriptPath}`);
     }
 
-    if (task.script.endsWith('.bat')) {
-      command = 'cmd.exe';
-      args = ['/c', scriptPath, hostname];
+    if (task.script.endsWith(".bat")) {
+      command = "cmd.exe";
+      args = ["/c", scriptPath, hostname];
     } else {
-      command = 'powershell.exe';
-      args = ['-ExecutionPolicy', 'Bypass', '-File', scriptPath, hostname];
+      command = "powershell.exe";
+      args = ["-ExecutionPolicy", "Bypass", "-File", scriptPath, hostname];
     }
 
     // Add any additional args
@@ -118,40 +180,40 @@ async function executeLocalTask(taskName, task, metadata = {}) {
   // Log execution
   logExecution(taskName, hostname, metadata.username, metadata.ip, {
     task: task.description,
-    command: `${command} ${args.join(' ')}`,
-    local: true
+    command: `${command} ${args.join(" ")}`,
+    local: true,
   });
 
   // Execute locally
   return new Promise((resolve, reject) => {
     const proc = spawn(command, args, {
-      cwd: path.join(config.scripts.allowedPath, '..'), // Run from root directory
+      cwd: path.join(config.scripts.allowedPath, ".."), // Run from root directory
       windowsHide: false, // Show window for debugging
       detached: false, // Don't detach - wait for completion
-      stdio: ['ignore', 'pipe', 'pipe']
+      stdio: ["ignore", "pipe", "pipe"],
     });
 
-    let stdout = '';
-    let stderr = '';
+    let stdout = "";
+    let stderr = "";
 
     if (proc.stdout) {
-      proc.stdout.on('data', (data) => {
+      proc.stdout.on("data", (data) => {
         stdout += data.toString();
       });
     }
 
     if (proc.stderr) {
-      proc.stderr.on('data', (data) => {
+      proc.stderr.on("data", (data) => {
         stderr += data.toString();
       });
     }
 
     const timeout = setTimeout(() => {
       proc.kill();
-      reject(new Error('Execution timeout exceeded'));
+      reject(new Error("Execution timeout exceeded"));
     }, config.psexec.timeout);
 
-    proc.on('close', (code) => {
+    proc.on("close", (code) => {
       clearTimeout(timeout);
 
       const result = {
@@ -161,26 +223,26 @@ async function executeLocalTask(taskName, task, metadata = {}) {
         stderr: stderr.trim(),
         taskName,
         hostname,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
 
       if (code === 0) {
         logExecution(taskName, hostname, metadata.username, metadata.ip, {
-          status: 'completed',
-          exitCode: code
+          status: "completed",
+          exitCode: code,
         });
         resolve(result);
       } else {
         logError(new Error(`Task exited with code ${code}`), {
           taskName,
           hostname,
-          stderr: stderr.trim()
+          stderr: stderr.trim(),
         });
         resolve(result); // Still resolve for local execution
       }
     });
 
-    proc.on('error', (error) => {
+    proc.on("error", (error) => {
       clearTimeout(timeout);
       logError(error, { taskName, hostname });
       reject(error);
@@ -206,10 +268,12 @@ async function executeRemoteTask(taskName, hostname, metadata = {}) {
     }
 
     // Check if this is local execution
-    const localHostname = require('os').hostname();
-    if (hostname.toLowerCase() === localHostname.toLowerCase() ||
-        hostname.toLowerCase() === 'localhost' ||
-        hostname === '127.0.0.1') {
+    const localHostname = require("os").hostname();
+    if (
+      hostname.toLowerCase() === localHostname.toLowerCase() ||
+      hostname.toLowerCase() === "localhost" ||
+      hostname === "127.0.0.1"
+    ) {
       // Execute locally without PsExec
       return executeLocalTask(taskName, task, metadata);
     }
@@ -223,7 +287,7 @@ async function executeRemoteTask(taskName, hostname, metadata = {}) {
     // Log execution attempt
     logExecution(taskName, hostname, metadata.username, metadata.ip, {
       task: task.description,
-      args: args.join(' ')
+      args: args.join(" "),
     });
 
     // Spawn PsExec process
@@ -231,21 +295,21 @@ async function executeRemoteTask(taskName, hostname, metadata = {}) {
       const psexec = spawn(config.psexec.path, args, {
         windowsHide: true,
         detached: true,
-        stdio: ['ignore', 'pipe', 'pipe']
+        stdio: ["ignore", "pipe", "pipe"],
       });
 
-      let stdout = '';
-      let stderr = '';
+      let stdout = "";
+      let stderr = "";
 
       // Capture output
       if (psexec.stdout) {
-        psexec.stdout.on('data', (data) => {
+        psexec.stdout.on("data", (data) => {
           stdout += data.toString();
         });
       }
 
       if (psexec.stderr) {
-        psexec.stderr.on('data', (data) => {
+        psexec.stderr.on("data", (data) => {
           stderr += data.toString();
         });
       }
@@ -253,11 +317,11 @@ async function executeRemoteTask(taskName, hostname, metadata = {}) {
       // Set timeout
       const timeout = setTimeout(() => {
         psexec.kill();
-        reject(new Error('Execution timeout exceeded'));
+        reject(new Error("Execution timeout exceeded"));
       }, config.psexec.timeout);
 
       // Handle process completion
-      psexec.on('close', (code) => {
+      psexec.on("close", (code) => {
         clearTimeout(timeout);
 
         const result = {
@@ -267,26 +331,31 @@ async function executeRemoteTask(taskName, hostname, metadata = {}) {
           stderr: stderr.trim(),
           taskName,
           hostname,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         };
 
         if (code === 0) {
           logExecution(taskName, hostname, metadata.username, metadata.ip, {
-            status: 'completed',
-            exitCode: code
+            status: "completed",
+            exitCode: code,
           });
           resolve(result);
         } else {
-          logError(new Error(`PsExec exited with code ${code}`), {
-            taskName,
-            hostname,
-            stderr: stderr.trim()
-          });
-          reject(new Error(`Execution failed with exit code ${code}: ${stderr}`));
+          const errorMessage = getPsExecErrorMessage(code, stderr.trim());
+          logError(
+            new Error(`PsExec exited with code ${code}: ${errorMessage}`),
+            {
+              taskName,
+              hostname,
+              exitCode: code,
+              stderr: stderr.trim(),
+            }
+          );
+          reject(new Error(`${errorMessage}\n\nDetails: ${stderr.trim()}`));
         }
       });
 
-      psexec.on('error', (error) => {
+      psexec.on("error", (error) => {
         clearTimeout(timeout);
         logError(error, { taskName, hostname });
         reject(error);
@@ -295,7 +364,6 @@ async function executeRemoteTask(taskName, hostname, metadata = {}) {
       // Unref to allow process to continue in background for fire-and-forget tasks
       psexec.unref();
     });
-
   } catch (error) {
     logError(error, { taskName, hostname });
     throw error;
@@ -309,12 +377,12 @@ function getAvailableTasks() {
   return Object.entries(config.allowedTasks).map(([name, task]) => ({
     name,
     description: task.description,
-    requiresAdmin: task.runAs === 'admin'
+    requiresAdmin: task.runAs === "admin",
   }));
 }
 
 module.exports = {
   executeRemoteTask,
   getAvailableTasks,
-  checkPsExec
+  checkPsExec,
 };

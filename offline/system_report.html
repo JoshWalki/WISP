@@ -539,7 +539,13 @@
               id="searchBox"
               placeholder="Search system information... (e.g., 'memory', 'network', 'error', 'service name')"
             />
-            <button class="clear-search" id="clearSearchBtn" onclick="clearSearch()">✕</button>
+            <button
+              class="clear-search"
+              id="clearSearchBtn"
+              onclick="clearSearch()"
+            >
+              ✕
+            </button>
           </div>
           <div class="search-info">
             <span id="searchStats" class="search-stats"></span>
@@ -556,7 +562,7 @@
 
     <footer>
       <div class="text-center" style="margin: 20px 0; opacity: 0.5">
-        Made with ❤️ by
+        Made by
         <a href="https://github.com/JoshWalki" target="_blank">Josh</a>
       </div>
     </footer>
@@ -2051,47 +2057,192 @@
         return html;
       }
 
+      let driversData = [];
+      let filteredDriversData = [];
+      let currentDriversPage = 1;
+      const driversPerPage = 30;
+
       function formatDrivers(drivers) {
         if (!drivers || drivers.error)
           return `<p class="error">${
             drivers?.error || "No data available"
           }</p>`;
+        if (
+          !drivers.list ||
+          !Array.isArray(drivers.list) ||
+          drivers.list.length === 0
+        )
+          return "<p>No driver information available</p>";
 
-        if (drivers.list && Array.isArray(drivers.list)) {
-          let html =
-            "<table><tr><th>Module Name</th><th>Display Name</th><th>Type</th><th>Start Mode</th><th>State</th><th>Status</th></tr>";
-          drivers.list.forEach((driver) => {
-            html += `
-                        <tr>
-                            <td style="font-family: monospace; font-size: 11px;">${
-                              driver.moduleName || "N/A"
-                            }</td>
-                            <td style="font-size: 11px;">${
-                              driver.displayName || "N/A"
-                            }</td>
-                            <td>${driver.driverType || "N/A"}</td>
-                            <td>${driver.startMode || "N/A"}</td>
-                            <td class="${
-                              driver.state === "Running"
-                                ? "status-ok"
-                                : driver.state === "Stopped"
-                                ? "status-error"
-                                : "status-warning"
-                            }">${driver.state || "N/A"}</td>
-                            <td class="${
-                              driver.status === "OK"
-                                ? "status-ok"
-                                : "status-warning"
-                            }">${driver.status || "N/A"}</td>
-                        </tr>
-                    `;
-          });
-          html += "</table>";
-          html += `<p><em>Showing first ${drivers.list.length} drivers</em></p>`;
-          return html;
+        // Store the full drivers data for pagination and search
+        driversData = drivers.list;
+        filteredDriversData = drivers.list;
+        currentDriversPage = 1;
+
+        let html = `
+                <div class="drivers-search-container" style="margin-bottom: 15px;">
+                    <input type="text"
+                           class="search-box"
+                           id="driversSearchBox"
+                           placeholder="Search drivers by name, display name, type, or state..."
+                           style="width: 100%; margin-bottom: 10px;"
+                           onkeyup="searchDrivers(this.value)">
+                    <div id="driversSearchInfo" style="font-size: 12px; color: #cdcdcd;"></div>
+                </div>
+                <div id="driversTable"></div>
+                <div id="driversPagination" style="margin-top: 15px; text-align: center;"></div>
+            `;
+
+        // Use setTimeout to render after HTML is inserted
+        setTimeout(() => {
+          renderDriversTable();
+        }, 0);
+
+        return html;
+      }
+
+      function searchDrivers(searchTerm) {
+        if (searchTerm === "") {
+          filteredDriversData = driversData;
+        } else {
+          const lowerSearch = searchTerm.toLowerCase();
+          filteredDriversData = driversData.filter(
+            (driver) =>
+              (driver.moduleName || "").toLowerCase().includes(lowerSearch) ||
+              (driver.displayName || "").toLowerCase().includes(lowerSearch) ||
+              (driver.driverType || "").toLowerCase().includes(lowerSearch) ||
+              (driver.state || "").toLowerCase().includes(lowerSearch) ||
+              (driver.startMode || "").toLowerCase().includes(lowerSearch) ||
+              (driver.status || "").toLowerCase().includes(lowerSearch)
+          );
+        }
+        currentDriversPage = 1;
+        renderDriversTable();
+
+        const searchInfo = document.getElementById("driversSearchInfo");
+        if (searchInfo) {
+          if (searchTerm === "") {
+            searchInfo.innerHTML = "";
+          } else {
+            searchInfo.innerHTML = `Found ${filteredDriversData.length} driver(s) matching "${searchTerm}"`;
+          }
+        }
+      }
+
+      function renderDriversTable() {
+        const tableContainer = document.getElementById("driversTable");
+        if (!tableContainer) return;
+
+        const totalPages = Math.ceil(
+          filteredDriversData.length / driversPerPage
+        );
+        const startIdx = (currentDriversPage - 1) * driversPerPage;
+        const endIdx = Math.min(
+          startIdx + driversPerPage,
+          filteredDriversData.length
+        );
+        const pageData = filteredDriversData.slice(startIdx, endIdx);
+
+        let html =
+          "<table><tr><th>Module Name</th><th>Display Name</th><th>Type</th><th>Start Mode</th><th>State</th><th>Status</th></tr>";
+        pageData.forEach((driver) => {
+          html += `
+                    <tr>
+                        <td style="font-family: monospace; font-size: 11px;">${
+                          driver.moduleName || "N/A"
+                        }</td>
+                        <td style="font-size: 11px;">${
+                          driver.displayName || "N/A"
+                        }</td>
+                        <td>${driver.driverType || "N/A"}</td>
+                        <td>${driver.startMode || "N/A"}</td>
+                        <td class="${
+                          driver.state === "Running"
+                            ? "status-ok"
+                            : driver.state === "Stopped"
+                            ? "status-error"
+                            : "status-warning"
+                        }">${driver.state || "N/A"}</td>
+                        <td class="${
+                          driver.status === "OK"
+                            ? "status-ok"
+                            : "status-warning"
+                        }">${driver.status || "N/A"}</td>
+                    </tr>
+                `;
+        });
+        html += "</table>";
+        html += `<p><em>Showing ${startIdx + 1}-${endIdx} of ${
+          filteredDriversData.length
+        } drivers</em></p>`;
+
+        tableContainer.innerHTML = html;
+        renderDriversPagination(totalPages);
+      }
+
+      function renderDriversPagination(totalPages) {
+        const paginationContainer =
+          document.getElementById("driversPagination");
+        if (!paginationContainer || totalPages <= 1) {
+          if (paginationContainer) paginationContainer.innerHTML = "";
+          return;
         }
 
-        return "<p>No driver information available</p>";
+        let html =
+          '<div style="display: flex; gap: 5px; justify-content: center; flex-wrap: wrap;">';
+
+        // Previous button
+        if (currentDriversPage > 1) {
+          html += `<button onclick="changeDriversPage(${
+            currentDriversPage - 1
+          })" style="padding: 5px 10px;">Previous</button>`;
+        }
+
+        // Page numbers
+        const maxButtons = 5;
+        let startPage = Math.max(
+          1,
+          currentDriversPage - Math.floor(maxButtons / 2)
+        );
+        let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+
+        if (endPage - startPage < maxButtons - 1) {
+          startPage = Math.max(1, endPage - maxButtons + 1);
+        }
+
+        if (startPage > 1) {
+          html += `<button onclick="changeDriversPage(1)" style="padding: 5px 10px;">1</button>`;
+          if (startPage > 2) html += `<span style="padding: 5px;">...</span>`;
+        }
+
+        for (let i = startPage; i <= endPage; i++) {
+          const activeStyle =
+            i === currentDriversPage
+              ? "background: var(--secondary-color); font-weight: bold;"
+              : "";
+          html += `<button onclick="changeDriversPage(${i})" style="padding: 5px 10px; ${activeStyle}">${i}</button>`;
+        }
+
+        if (endPage < totalPages) {
+          if (endPage < totalPages - 1)
+            html += `<span style="padding: 5px;">...</span>`;
+          html += `<button onclick="changeDriversPage(${totalPages})" style="padding: 5px 10px;">${totalPages}</button>`;
+        }
+
+        // Next button
+        if (currentDriversPage < totalPages) {
+          html += `<button onclick="changeDriversPage(${
+            currentDriversPage + 1
+          })" style="padding: 5px 10px;">Next</button>`;
+        }
+
+        html += "</div>";
+        paginationContainer.innerHTML = html;
+      }
+
+      function changeDriversPage(page) {
+        currentDriversPage = page;
+        renderDriversTable();
       }
 
       // Helper functions
@@ -2152,7 +2303,7 @@
             collapsibles[index].style.display = ""; // Show all collapsible buttons
           });
           // Show all h2 section headers
-          sections.forEach(section => {
+          sections.forEach((section) => {
             section.style.display = "";
           });
           document.getElementById("searchStats").innerHTML = "";
@@ -2167,7 +2318,7 @@
         contentDivs.forEach((div, index) => {
           const originalHtml = originalSections[index];
           const textContent = div.textContent || div.innerText || "";
-          const parentSection = collapsibles[index].closest('.section');
+          const parentSection = collapsibles[index].closest(".section");
 
           if (
             textContent.toLowerCase().indexOf(searchTerm.toLowerCase()) !== -1
@@ -2210,7 +2361,7 @@
         });
 
         // Hide h2 sections that have no matching subsections
-        sections.forEach(section => {
+        sections.forEach((section) => {
           if (sectionMatchMap.get(section)) {
             section.style.display = "";
           } else {
@@ -2320,8 +2471,12 @@
 
       function setupPreSearchable(preElement) {
         // Check if wrapper and UI already exist (prevent duplicates)
-        const alreadyWrapped = preElement.parentElement.classList.contains("pre-search-container");
-        const hasSearchButton = alreadyWrapped && preElement.parentElement.querySelector(".pre-search-trigger");
+        const alreadyWrapped = preElement.parentElement.classList.contains(
+          "pre-search-container"
+        );
+        const hasSearchButton =
+          alreadyWrapped &&
+          preElement.parentElement.querySelector(".pre-search-trigger");
 
         if (alreadyWrapped && hasSearchButton) {
           // Already set up, just update the original content in case main search modified it

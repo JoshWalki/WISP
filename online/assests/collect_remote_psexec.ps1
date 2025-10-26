@@ -58,7 +58,7 @@ try {
     & $PsExecPath "\\$ComputerName" -accepteula -nobanner -s reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion" 2>&1 | Out-File "$OutputDir\winbuild.txt" -Encoding UTF8
 
     Write-Host "[*] Step 2/10: Collecting storage information..."
-    & $PsExecPath "\\$ComputerName" -accepteula -nobanner -s wmic logicaldisk get Size,FreeSpace,Caption,DriveType,FileSystem,VolumeName /format:csv 2>&1 | Out-File "$OutputDir\disks.csv" -Encoding UTF8
+    & $PsExecPath "\\$ComputerName" -accepteula -nobanner -s powershell -Command "Get-WmiObject Win32_LogicalDisk | Select-Object DeviceID, VolumeName, FileSystem, Size, FreeSpace, DriveType | Export-Csv -Path 'C:\Windows\Temp\disks_temp.csv' -NoTypeInformation; Get-Content 'C:\Windows\Temp\disks_temp.csv'; Remove-Item 'C:\Windows\Temp\disks_temp.csv' -Force" 2>&1 | Out-File "$OutputDir\disks.csv" -Encoding UTF8
     "Remote mountvol not supported via PsExec" | Out-File "$OutputDir\mountvol.txt"
 
     Write-Host "[*] Step 3/10: Collecting hardware information..."

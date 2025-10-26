@@ -367,10 +367,8 @@ app.post('/run-sync/:task/:host', validateToken, async (req, res) => {
       ip: clientIp
     });
 
-    res.json({
-      success: true,
-      result
-    });
+    // Return result directly with all fields (success, stdout, stderr, exitCode, etc.)
+    res.json(result);
 
   } catch (error) {
     logger.error('Sync execution failed', {

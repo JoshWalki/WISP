@@ -207,19 +207,43 @@ try {
     try {
         $diskFile = Join-Path $TempDir 'disks.csv'
         if (Test-Path $diskFile) {
-            $diskData = Import-Csv $diskFile | Where-Object { $_.Caption }
-            $disks = @()
-            foreach ($disk in $diskData) {
-                $disks += @{
-                    caption = $disk.Caption
-                    driveType = $disk.DriveType
-                    fileSystem = $disk.FileSystem
-                    freeSpace = $disk.FreeSpace
-                    size = $disk.Size
-                    volumeName = $disk.VolumeName
+            # Read the file and filter out PsExec noise, keeping only CSV lines
+            $fileContent = Get-Content $diskFile
+            $csvLines = @()
+            $foundHeader = $false
+
+            foreach ($line in $fileContent) {
+                # Look for the CSV header line
+                if ($line -match '^"?DeviceID"?') {
+                    $foundHeader = $true
+                    $csvLines += $line
+                }
+                # After finding header, collect all lines that look like CSV data
+                elseif ($foundHeader -and $line -match '^"[A-Z]:"') {
+                    $csvLines += $line
                 }
             }
-            $systemData.storage.logicalDisks = $disks
+
+            if ($csvLines.Count -gt 0) {
+                # Create a temporary in-memory CSV from the filtered lines
+                $csvContent = $csvLines -join "`n"
+                $diskData = $csvContent | ConvertFrom-Csv | Where-Object { $_.DeviceID }
+
+                $disks = @()
+                foreach ($disk in $diskData) {
+                    $disks += @{
+                        caption = $disk.DeviceID
+                        driveType = $disk.DriveType
+                        fileSystem = $disk.FileSystem
+                        freeSpace = $disk.FreeSpace
+                        size = $disk.Size
+                        volumeName = $disk.VolumeName
+                    }
+                }
+                $systemData.storage.logicalDisks = $disks
+            } else {
+                $systemData.storage.logicalDisks = @{ error = 'No valid disk data found in CSV' }
+            }
         } else {
             $systemData.storage.logicalDisks = @{ error = 'disks.csv not found' }
         }
@@ -259,20 +283,44 @@ try {
     try {
         $driverFile = Join-Path $TempDir 'drivers.csv'
         if (Test-Path $driverFile) {
-            $driverData = Import-Csv $driverFile | Select-Object -First 50 | ForEach-Object {
-                @{
-                    moduleName = $_.'Module Name'
-                    displayName = $_.'Display Name'
-                    driverType = $_.'Driver Type'
-                    startMode = $_.'Start Mode'
-                    state = $_.'State'
-                    status = $_.'Status'
-                    acceptStop = $_.'Accept Stop'
-                    acceptPause = $_.'Accept Pause'
-                    memoryUsage = $_.'Paged Pool(bytes)'
+            # Read the file and filter out PsExec noise, keeping only CSV lines
+            $fileContent = Get-Content $driverFile
+            $csvLines = @()
+            $foundHeader = $false
+
+            foreach ($line in $fileContent) {
+                # Look for the CSV header line
+                if ($line -match '^"?Module Name"?') {
+                    $foundHeader = $true
+                    $csvLines += $line
+                }
+                # After finding header, collect all lines that look like CSV data (start with quoted text)
+                elseif ($foundHeader -and $line -match '^"[^"]+","') {
+                    $csvLines += $line
                 }
             }
-            $systemData.hardware.drivers = @{ list = $driverData }
+
+            if ($csvLines.Count -gt 0) {
+                # Create a temporary in-memory CSV from the filtered lines
+                $csvContent = $csvLines -join "`n"
+                $driverData = $csvContent | ConvertFrom-Csv | ForEach-Object {
+                    @{
+                        moduleName = $_.'Module Name'
+                        displayName = $_.'Display Name'
+                        driverType = $_.'Driver Type'
+                        startMode = $_.'Start Mode'
+                        state = $_.'State'
+                        status = $_.'Status'
+                        acceptStop = $_.'Accept Stop'
+                        acceptPause = $_.'Accept Pause'
+                        memoryUsage = $_.'Paged Pool(bytes)'
+                        path = $_.'Path'
+                    }
+                }
+                $systemData.hardware.drivers = @{ list = $driverData }
+            } else {
+                $systemData.hardware.drivers = @{ error = 'No valid driver data found in CSV' }
+            }
         } else {
             $systemData.hardware.drivers = @{ error = 'drivers.csv not found' }
         }
@@ -285,17 +333,41 @@ try {
     try {
         $hotfixFile = Join-Path $TempDir 'hotfixes.csv'
         if (Test-Path $hotfixFile) {
-            $hotfixData = Import-Csv $hotfixFile | Where-Object { $_.HotFixID } | Select-Object -First 20
-            $hotfixes = @()
-            foreach ($hf in $hotfixData) {
-                $hotfixes += @{
-                    hotfixId = $hf.HotFixID
-                    description = $hf.Description
-                    installedBy = $hf.InstalledBy
-                    installedOn = $hf.InstalledOn
+            # Read the file and filter out PsExec noise, keeping only CSV lines
+            $fileContent = Get-Content $hotfixFile
+            $csvLines = @()
+            $foundHeader = $false
+
+            foreach ($line in $fileContent) {
+                # Look for the CSV header line (Node or HotFixID columns)
+                if ($line -match '^"?(Node|HotFixID)"?' -or $line -match 'HotFixID') {
+                    $foundHeader = $true
+                    $csvLines += $line
+                }
+                # After finding header, collect all non-empty lines
+                elseif ($foundHeader -and $line.Trim() -ne '' -and $line -notmatch '^PsExec' -and $line -notmatch 'wmic exited') {
+                    $csvLines += $line
                 }
             }
-            $systemData.software.hotfixes = $hotfixes
+
+            if ($csvLines.Count -gt 1) {
+                # Create a temporary in-memory CSV from the filtered lines
+                $csvContent = $csvLines -join "`n"
+                $hotfixData = $csvContent | ConvertFrom-Csv | Where-Object { $_.HotFixID }
+
+                $hotfixes = @()
+                foreach ($hf in $hotfixData) {
+                    $hotfixes += @{
+                        hotfixId = $hf.HotFixID
+                        description = $hf.Description
+                        installedBy = $hf.InstalledBy
+                        installedOn = $hf.InstalledOn
+                    }
+                }
+                $systemData.software.hotfixes = $hotfixes
+            } else {
+                $systemData.software.hotfixes = @{ error = 'No valid hotfix data found in CSV' }
+            }
         } else {
             $systemData.software.hotfixes = @{ error = 'hotfixes.csv not found' }
         }
@@ -386,16 +458,40 @@ try {
     try {
         $processFile = Join-Path $TempDir 'processes.csv'
         if (Test-Path $processFile) {
-            $processData = Import-Csv $processFile | Select-Object -First 20
-            $processes = @()
-            foreach ($proc in $processData) {
-                $processes += @{
-                    name = $proc.'Image Name'
-                    pid = $proc.PID
-                    memory = $proc.'Mem Usage'
+            # Read the file and filter out PsExec noise, keeping only CSV lines
+            $fileContent = Get-Content $processFile
+            $csvLines = @()
+            $foundHeader = $false
+
+            foreach ($line in $fileContent) {
+                # Look for the CSV header line
+                if ($line -match '^"?Image Name"?' -or $line -match '"PID"') {
+                    $foundHeader = $true
+                    $csvLines += $line
+                }
+                # After finding header, collect all lines that look like CSV data (start with quoted text)
+                elseif ($foundHeader -and $line -match '^"[^"]+","') {
+                    $csvLines += $line
                 }
             }
-            $systemData.processes.topProcesses = $processes
+
+            if ($csvLines.Count -gt 1) {
+                # Create a temporary in-memory CSV from the filtered lines
+                $csvContent = $csvLines -join "`n"
+                $processData = $csvContent | ConvertFrom-Csv | Select-Object -First 20
+
+                $processes = @()
+                foreach ($proc in $processData) {
+                    $processes += @{
+                        name = $proc.'Image Name'
+                        pid = $proc.PID
+                        memory = $proc.'Mem Usage'
+                    }
+                }
+                $systemData.processes.topProcesses = $processes
+            } else {
+                $systemData.processes.topProcesses = @{ error = 'No valid process data found in CSV' }
+            }
         } else {
             $systemData.processes.topProcesses = @{ error = 'processes.csv not found' }
         }

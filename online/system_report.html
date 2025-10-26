@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="assests/favicon.png" />
     <title>WISP - Windows Information System Portal</title>
     <style>
       :root {
@@ -357,6 +358,79 @@
       .toast-message {
         font-size: 13px;
         opacity: 0.9;
+        word-wrap: break-word;
+      }
+      .toast-message pre {
+        background: var(--color-bg);
+        padding: 10px;
+        border-radius: 5px;
+        margin: 8px 0 0 0;
+        overflow-x: auto;
+        font-size: 12px;
+        font-family: "Consolas", "Monaco", "Courier New", monospace;
+        max-height: 300px;
+        overflow-y: auto;
+      }
+      .toast.has-output {
+        max-width: 600px;
+      }
+      /* Command output in status area */
+      .task-item {
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 10px;
+        position: relative;
+      }
+      .task-item:last-child {
+        margin-bottom: 10px;
+      }
+      .task-close-btn {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: none;
+        border: none;
+        color: var(--color-font);
+        font-size: 20px;
+        cursor: pointer;
+        padding: 0;
+        width: 24px;
+        height: 24px;
+        opacity: 0.6;
+        transition: opacity 0.2s, transform 0.2s;
+        line-height: 1;
+      }
+      .task-close-btn:hover {
+        opacity: 1;
+        transform: scale(1.1);
+      }
+      .command-output {
+        margin-top: 10px;
+        background: var(--color-bg);
+        border-radius: 5px;
+        padding: 10px;
+      }
+      .output-header {
+        font-weight: 600;
+        font-size: 12px;
+        color: var(--secondary-color);
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .command-output pre {
+        background: rgba(0, 0, 0, 0.4);
+        padding: 12px;
+        border-radius: 5px;
+        margin: 0;
+        overflow-x: auto;
+        font-size: 12px;
+        font-family: "Consolas", "Monaco", "Courier New", monospace;
+        max-height: 400px;
+        overflow-y: auto;
+        line-height: 1.5;
+        color: #e0e0e0;
       }
       .toast-close {
         background: none;
@@ -372,6 +446,123 @@
       }
       .toast-close:hover {
         opacity: 1;
+      }
+      /* Confirmation Modal Styles */
+      .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 10000;
+        justify-content: center;
+        align-items: center;
+        animation: fadeIn 0.2s ease-out;
+      }
+      .modal-overlay.active {
+        display: flex;
+      }
+      .modal-dialog {
+        background: var(--color-fg);
+        border-radius: 12px;
+        padding: 30px;
+        max-width: 500px;
+        width: 90%;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+        animation: slideUp 0.3s ease-out;
+        position: relative;
+      }
+      .modal-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 20px;
+      }
+      .modal-icon {
+        font-size: 32px;
+        color: #ffd93d;
+      }
+      .modal-title {
+        font-size: 20px;
+        font-weight: 700;
+        color: var(--color-font);
+      }
+      .modal-body {
+        margin-bottom: 25px;
+        line-height: 1.6;
+        color: var(--color-font);
+      }
+      .modal-body p {
+        margin: 10px 0;
+      }
+      .modal-body .warning-text {
+        color: #ffd93d;
+        font-weight: 600;
+      }
+      .modal-footer {
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+      }
+      .modal-btn {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        min-width: 100px;
+      }
+      .modal-btn-cancel {
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--color-font);
+      }
+      .modal-btn-cancel:hover {
+        background: rgba(255, 255, 255, 0.15);
+      }
+      .modal-btn-confirm {
+        background: #ffd93d;
+        color: #1a1a2e;
+      }
+      .modal-btn-confirm:hover {
+        background: #ffed4e;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(255, 217, 61, 0.3);
+      }
+      .modal-btn-confirm:active {
+        transform: translateY(0);
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+      @keyframes slideUp {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      /* Yellow restart button */
+      .action-btn-restart {
+        background: linear-gradient(135deg, #ffd93d 0%, #ffb800 100%);
+        color: #1a1a2e;
+        font-weight: 700;
+      }
+      .action-btn-restart:hover {
+        background: linear-gradient(135deg, #ffed4e 0%, #ffd93d 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(255, 217, 61, 0.4) !important;
       }
       @keyframes slideIn {
         from {
@@ -590,8 +781,8 @@
           "
         >
           <p style="margin-bottom: 15px; color: #cdcdcd">
-            Execute approved scripts on remote endpoints using WISP Companion
-            Service.
+            Execute scripts on remote endpoints using WISP Companion Service.<br />
+            All scripts run silently.
           </p>
 
           <div style="margin-bottom: 20px">
@@ -604,7 +795,6 @@
             <input
               type="text"
               id="targetHostInput"
-              placeholder="e.g., PC-001 or 192.168.1.100"
               style="
                 width: 100%;
                 max-width: 400px;
@@ -620,7 +810,7 @@
 
           <div style="display: flex; flex-wrap: wrap; gap: 10px">
             <button class="action-btn" onclick="runRemoteTask('system-report')">
-              <div>
+              <div style="margin: 10px">
                 <div style="font-weight: 600">Gather System Data</div>
                 <div style="font-size: 11px; opacity: 0.8">
                   Run SystemReport.bat
@@ -629,7 +819,7 @@
             </button>
 
             <button class="action-btn" onclick="runRemoteTask('gpupdate')">
-              <div>
+              <div style="margin: 10px">
                 <div style="font-weight: 600">Run gpupdate</div>
                 <div style="font-size: 11px; opacity: 0.8">
                   Force Group Policy update
@@ -641,9 +831,74 @@
               class="action-btn"
               onclick="runRemoteTask('test-connection')"
             >
-              <div>
+              <div style="margin: 10px">
                 <div style="font-weight: 600">Test Connection</div>
                 <div style="font-size: 11px; opacity: 0.8">Ping test</div>
+              </div>
+            </button>
+
+            <button
+              class="action-btn"
+              onclick="runRemoteTask('ipconfig-renew')"
+            >
+              <div style="margin: 10px">
+                <div style="font-weight: 600">IP Renew</div>
+                <div style="font-size: 11px; opacity: 0.8">ipconfig /renew</div>
+              </div>
+            </button>
+
+            <button
+              class="action-btn"
+              onclick="runRemoteTask('ipconfig-release')"
+            >
+              <div style="margin: 10px">
+                <div style="font-weight: 600">IP Release</div>
+                <div style="font-size: 11px; opacity: 0.8">
+                  ipconfig /release
+                </div>
+              </div>
+            </button>
+
+            <button
+              class="action-btn"
+              onclick="runRemoteTask('ipconfig-flushdns')"
+            >
+              <div style="margin: 10px">
+                <div style="font-weight: 600">Flush DNS</div>
+                <div style="font-size: 11px; opacity: 0.8">
+                  ipconfig /flushdns
+                </div>
+              </div>
+            </button>
+
+            <button
+              class="action-btn"
+              onclick="runRemoteTask('dism-restorehealth')"
+            >
+              <div style="margin: 10px">
+                <div style="font-weight: 600">DISM Repair</div>
+                <div style="font-size: 11px; opacity: 0.8">
+                  Restore system health
+                </div>
+              </div>
+            </button>
+
+            <button class="action-btn" onclick="runRemoteTask('sfc-scannow')">
+              <div style="margin: 10px">
+                <div style="font-weight: 600">SFC Scan</div>
+                <div style="font-size: 11px; opacity: 0.8">sfc /scannow</div>
+              </div>
+            </button>
+
+            <button
+              class="action-btn action-btn-restart"
+              onclick="showRestartModal()"
+            >
+              <div style="margin: 10px">
+                <div style="font-weight: 600">Restart Computer</div>
+                <div style="font-size: 11px; opacity: 0.9">
+                  Restart with 10s warning
+                </div>
               </div>
             </button>
           </div>
@@ -2208,47 +2463,185 @@
         return html;
       }
 
+      let driversData = [];
+      let filteredDriversData = [];
+      let currentDriversPage = 1;
+      const driversPerPage = 30;
+
       function formatDrivers(drivers) {
         if (!drivers || drivers.error)
           return `<p class="error">${
             drivers?.error || "No data available"
           }</p>`;
+        if (!drivers.list || !Array.isArray(drivers.list) || drivers.list.length === 0)
+          return "<p>No driver information available</p>";
 
-        if (drivers.list && Array.isArray(drivers.list)) {
-          let html =
-            "<table><tr><th>Module Name</th><th>Display Name</th><th>Type</th><th>Start Mode</th><th>State</th><th>Status</th></tr>";
-          drivers.list.forEach((driver) => {
-            html += `
-                        <tr>
-                            <td style="font-family: monospace; font-size: 11px;">${
-                              driver.moduleName || "N/A"
-                            }</td>
-                            <td style="font-size: 11px;">${
-                              driver.displayName || "N/A"
-                            }</td>
-                            <td>${driver.driverType || "N/A"}</td>
-                            <td>${driver.startMode || "N/A"}</td>
-                            <td class="${
-                              driver.state === "Running"
-                                ? "status-ok"
-                                : driver.state === "Stopped"
-                                ? "status-error"
-                                : "status-warning"
-                            }">${driver.state || "N/A"}</td>
-                            <td class="${
-                              driver.status === "OK"
-                                ? "status-ok"
-                                : "status-warning"
-                            }">${driver.status || "N/A"}</td>
-                        </tr>
-                    `;
-          });
-          html += "</table>";
-          html += `<p><em>Showing first ${drivers.list.length} drivers</em></p>`;
-          return html;
+        // Store the full drivers data for pagination and search
+        driversData = drivers.list;
+        filteredDriversData = drivers.list;
+        currentDriversPage = 1;
+
+        let html = `
+                <div class="drivers-search-container" style="margin-bottom: 15px;">
+                    <input type="text"
+                           class="search-box"
+                           id="driversSearchBox"
+                           placeholder="Search drivers by name, display name, type, or state..."
+                           style="width: 100%; margin-bottom: 10px;"
+                           onkeyup="searchDrivers(this.value)">
+                    <div id="driversSearchInfo" style="font-size: 12px; color: #cdcdcd;"></div>
+                </div>
+                <div id="driversTable"></div>
+                <div id="driversPagination" style="margin-top: 15px; text-align: center;"></div>
+            `;
+
+        // Use setTimeout to render after HTML is inserted
+        setTimeout(() => {
+          renderDriversTable();
+        }, 0);
+
+        return html;
+      }
+
+      function searchDrivers(searchTerm) {
+        if (searchTerm === "") {
+          filteredDriversData = driversData;
+        } else {
+          const lowerSearch = searchTerm.toLowerCase();
+          filteredDriversData = driversData.filter(
+            (driver) =>
+              (driver.moduleName || "").toLowerCase().includes(lowerSearch) ||
+              (driver.displayName || "").toLowerCase().includes(lowerSearch) ||
+              (driver.driverType || "").toLowerCase().includes(lowerSearch) ||
+              (driver.state || "").toLowerCase().includes(lowerSearch) ||
+              (driver.startMode || "").toLowerCase().includes(lowerSearch) ||
+              (driver.status || "").toLowerCase().includes(lowerSearch)
+          );
+        }
+        currentDriversPage = 1;
+        renderDriversTable();
+
+        const searchInfo = document.getElementById("driversSearchInfo");
+        if (searchInfo) {
+          if (searchTerm === "") {
+            searchInfo.innerHTML = "";
+          } else {
+            searchInfo.innerHTML = `Found ${filteredDriversData.length} driver(s) matching "${searchTerm}"`;
+          }
+        }
+      }
+
+      function renderDriversTable() {
+        const tableContainer = document.getElementById("driversTable");
+        if (!tableContainer) return;
+
+        const totalPages = Math.ceil(filteredDriversData.length / driversPerPage);
+        const startIdx = (currentDriversPage - 1) * driversPerPage;
+        const endIdx = Math.min(
+          startIdx + driversPerPage,
+          filteredDriversData.length
+        );
+        const pageData = filteredDriversData.slice(startIdx, endIdx);
+
+        let html =
+          "<table><tr><th>Module Name</th><th>Display Name</th><th>Type</th><th>Start Mode</th><th>State</th><th>Status</th></tr>";
+        pageData.forEach((driver) => {
+          html += `
+                    <tr>
+                        <td style="font-family: monospace; font-size: 11px;">${
+                          driver.moduleName || "N/A"
+                        }</td>
+                        <td style="font-size: 11px;">${
+                          driver.displayName || "N/A"
+                        }</td>
+                        <td>${driver.driverType || "N/A"}</td>
+                        <td>${driver.startMode || "N/A"}</td>
+                        <td class="${
+                          driver.state === "Running"
+                            ? "status-ok"
+                            : driver.state === "Stopped"
+                            ? "status-error"
+                            : "status-warning"
+                        }">${driver.state || "N/A"}</td>
+                        <td class="${
+                          driver.status === "OK"
+                            ? "status-ok"
+                            : "status-warning"
+                        }">${driver.status || "N/A"}</td>
+                    </tr>
+                `;
+        });
+        html += "</table>";
+        html += `<p><em>Showing ${startIdx + 1}-${endIdx} of ${
+          filteredDriversData.length
+        } drivers</em></p>`;
+
+        tableContainer.innerHTML = html;
+        renderDriversPagination(totalPages);
+      }
+
+      function renderDriversPagination(totalPages) {
+        const paginationContainer = document.getElementById("driversPagination");
+        if (!paginationContainer || totalPages <= 1) {
+          if (paginationContainer) paginationContainer.innerHTML = "";
+          return;
         }
 
-        return "<p>No driver information available</p>";
+        let html =
+          '<div style="display: flex; gap: 5px; justify-content: center; flex-wrap: wrap;">';
+
+        // Previous button
+        if (currentDriversPage > 1) {
+          html += `<button onclick="changeDriversPage(${
+            currentDriversPage - 1
+          })" style="padding: 5px 10px;">Previous</button>`;
+        }
+
+        // Page numbers
+        const maxButtons = 5;
+        let startPage = Math.max(
+          1,
+          currentDriversPage - Math.floor(maxButtons / 2)
+        );
+        let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+
+        if (endPage - startPage < maxButtons - 1) {
+          startPage = Math.max(1, endPage - maxButtons + 1);
+        }
+
+        if (startPage > 1) {
+          html += `<button onclick="changeDriversPage(1)" style="padding: 5px 10px;">1</button>`;
+          if (startPage > 2) html += `<span style="padding: 5px;">...</span>`;
+        }
+
+        for (let i = startPage; i <= endPage; i++) {
+          const activeStyle =
+            i === currentDriversPage
+              ? "background: var(--secondary-color); font-weight: bold;"
+              : "";
+          html += `<button onclick="changeDriversPage(${i})" style="padding: 5px 10px; ${activeStyle}">${i}</button>`;
+        }
+
+        if (endPage < totalPages) {
+          if (endPage < totalPages - 1)
+            html += `<span style="padding: 5px;">...</span>`;
+          html += `<button onclick="changeDriversPage(${totalPages})" style="padding: 5px 10px;">${totalPages}</button>`;
+        }
+
+        // Next button
+        if (currentDriversPage < totalPages) {
+          html += `<button onclick="changeDriversPage(${
+            currentDriversPage + 1
+          })" style="padding: 5px 10px;">Next</button>`;
+        }
+
+        html += "</div>";
+        paginationContainer.innerHTML = html;
+      }
+
+      function changeDriversPage(page) {
+        currentDriversPage = page;
+        renderDriversTable();
       }
 
       // Helper functions
@@ -2406,10 +2799,16 @@
       });
 
       // Toast Notification System
-      function showToast(title, message, type = "info", duration = 5000) {
+      function showToast(
+        title,
+        message,
+        type = "info",
+        duration = 5000,
+        additionalClass = ""
+      ) {
         const container = document.getElementById("toastContainer");
         const toast = document.createElement("div");
-        toast.className = `toast ${type}`;
+        toast.className = `toast ${type} ${additionalClass}`;
 
         const icons = {
           success: "✓",
@@ -2453,7 +2852,7 @@
       function createPreSearchButton() {
         const button = document.createElement("button");
         button.className = "pre-search-trigger";
-        button.innerHTML = "🔍 Search";
+        button.innerHTML = "Search";
         button.title = "Search in this section";
         return button;
       }
@@ -2779,6 +3178,57 @@
       window.addEventListener("DOMContentLoaded", initializeWisp);
 
       /**
+       * Show restart confirmation modal
+       */
+      function showRestartModal() {
+        const targetHost = document
+          .getElementById("targetHostInput")
+          .value.trim();
+
+        if (!targetHost) {
+          showToast(
+            "Warning",
+            "Please enter a target hostname or IP address",
+            "warning",
+            4000
+          );
+          return;
+        }
+
+        // Set the target hostname in modal
+        document.getElementById("restartTargetHost").textContent = targetHost;
+
+        // Show modal
+        const modal = document.getElementById("restartModal");
+        modal.classList.add("active");
+      }
+
+      /**
+       * Hide restart confirmation modal
+       */
+      function hideRestartModal() {
+        const modal = document.getElementById("restartModal");
+        modal.classList.remove("active");
+      }
+
+      /**
+       * Confirm and execute restart task
+       */
+      function confirmRestart() {
+        hideRestartModal();
+        runRemoteTask("restart-computer");
+      }
+
+      /**
+       * Handle clicks on modal overlay (close when clicking outside dialog)
+       */
+      function handleModalClick(event) {
+        if (event.target.id === "restartModal") {
+          hideRestartModal();
+        }
+      }
+
+      /**
        * Execute a remote task on target host
        */
       async function runRemoteTask(taskName) {
@@ -2787,8 +3237,14 @@
           .value.trim();
         const statusDiv = document.getElementById("remoteActionStatus");
 
+        // Generate unique task ID for this execution
+        const taskId = `task-${taskName}-${targetHost}-${Date.now()}`.replace(
+          /[^a-zA-Z0-9-]/g,
+          "-"
+        );
+
         console.log(
-          `[runRemoteTask] Starting task: ${taskName} on host: ${targetHost}`
+          `[runRemoteTask] Starting task: ${taskName} on host: ${targetHost} (ID: ${taskId})`
         );
 
         // Validate inputs
@@ -2796,7 +3252,9 @@
           console.error("[runRemoteTask] No target hostname provided");
           showRemoteActionStatus(
             "error",
-            "Please enter a target hostname or IP address"
+            "Please enter a target hostname or IP address",
+            null,
+            taskId
           );
           return;
         }
@@ -2805,7 +3263,9 @@
           console.error("[runRemoteTask] WISP token not configured");
           showRemoteActionStatus(
             "error",
-            "WISP token not configured. Please set WISP_CONFIG.token in the HTML file."
+            "WISP Companion is disconnected: Unhealthy response. Is start-service.bat running and the token set?",
+            null,
+            taskId
           );
           return;
         }
@@ -2816,7 +3276,9 @@
         );
         showRemoteActionStatus(
           "loading",
-          `Running ${taskName} on ${targetHost}... This may take a few minutes.`
+          `Running ${taskName} on ${targetHost}... This may take a few minutes.`,
+          null,
+          taskId
         );
 
         try {
@@ -2843,7 +3305,9 @@
             console.error(`[runRemoteTask] Error response: ${errorText}`);
             showRemoteActionStatus(
               "error",
-              `HTTP ${response.status}: ${response.statusText}`
+              `HTTP ${response.status}: ${response.statusText}`,
+              null,
+              taskId
             );
             showToast(
               "Remote Task Failed",
@@ -2859,8 +3323,20 @@
 
           if (result.success) {
             console.log(`[runRemoteTask] Task completed successfully`);
+
+            // Format output for display
+            let outputText = "";
+            if (result.stdout && result.stdout.trim()) {
+              outputText = result.stdout.trim();
+            } else if (result.stderr && result.stderr.trim()) {
+              outputText = result.stderr.trim();
+            }
+
+            // Show success message with output in status area
             const successMsg = `Task '${taskName}' completed successfully on ${targetHost}`;
-            showRemoteActionStatus("success", successMsg);
+            showRemoteActionStatus("success", successMsg, outputText, taskId);
+
+            // Simple toast notification
             showToast("Task Complete", successMsg, "success", 5000);
 
             // If this was a system-report task, automatically load the generated report
@@ -2868,10 +3344,12 @@
               setTimeout(async () => {
                 showRemoteActionStatus(
                   "loading",
-                  "Loading generated report..."
+                  "Loading generated report...",
+                  null,
+                  taskId
                 );
                 try {
-                  await loadLatestReport(targetHost);
+                  await loadLatestReport(targetHost, taskId);
                 } catch (error) {
                   console.error(
                     "[runRemoteTask] Failed to auto-load report:",
@@ -2879,23 +3357,30 @@
                   );
                   showRemoteActionStatus(
                     "info",
-                    "Report generated! You can manually load the JSON file from the reports folder below."
+                    "Report generated! You can manually load the JSON file from the reports folder below.",
+                    null,
+                    taskId
                   );
                 }
               }, 1000);
             }
           } else {
             console.error(`[runRemoteTask] Task failed: ${result.error}`);
-            showRemoteActionStatus(
-              "error",
-              result.error || "Task execution failed"
-            );
-            showToast(
-              "Remote Task Failed",
-              result.error || "Task execution failed",
-              "error",
-              5000
-            );
+
+            // Format error output for display
+            const errorMsg = result.error || "Task execution failed";
+            let errorOutput = "";
+            if (result.stderr && result.stderr.trim()) {
+              errorOutput = result.stderr.trim();
+            } else if (result.stdout && result.stdout.trim()) {
+              errorOutput = result.stdout.trim();
+            }
+
+            // Show error message with output in status area
+            showRemoteActionStatus("error", errorMsg, errorOutput, taskId);
+
+            // Simple toast notification
+            showToast("Remote Task Failed", errorMsg, "error", 5000);
           }
         } catch (error) {
           console.error("[runRemoteTask] Exception caught:", error);
@@ -2906,7 +3391,7 @@
             : error.message;
 
           console.error(`[runRemoteTask] Final error message: ${errorMsg}`);
-          showRemoteActionStatus("error", errorMsg);
+          showRemoteActionStatus("error", errorMsg, null, taskId);
           showToast("Connection Error", errorMsg, "error", 5000);
         }
       }
@@ -2914,7 +3399,7 @@
       /**
        * Load the latest report for a given host
        */
-      async function loadLatestReport(hostname) {
+      async function loadLatestReport(hostname, taskId = null) {
         console.log(
           `[loadLatestReport] Fetching latest report for: ${hostname}`
         );
@@ -2943,7 +3428,9 @@
 
             showRemoteActionStatus(
               "success",
-              `Report for ${hostname} loaded successfully! Scroll down to view details.`
+              `Report for ${hostname} loaded successfully! Scroll down to view details.`,
+              null,
+              taskId
             );
             showToast(
               "Report Loaded",
@@ -2972,10 +3459,34 @@
       }
 
       /**
-       * Display status message in Remote Actions section
+       * Remove a task item from the status area
        */
-      function showRemoteActionStatus(type, message) {
-        const statusDiv = document.getElementById("remoteActionStatus");
+      function removeTaskItem(taskId) {
+        const taskElement = document.getElementById(taskId);
+        if (taskElement) {
+          taskElement.remove();
+
+          // Hide the status container if no tasks remain
+          const statusContainer = document.getElementById("remoteActionStatus");
+          if (statusContainer.children.length === 0) {
+            statusContainer.style.display = "none";
+          }
+        }
+      }
+
+      /**
+       * Display status message in Remote Actions section
+       * Now supports multiple concurrent tasks
+       */
+      function showRemoteActionStatus(
+        type,
+        message,
+        output = null,
+        taskId = null
+      ) {
+        const statusContainer = document.getElementById("remoteActionStatus");
+        statusContainer.style.display = "block";
+
         const colors = {
           success: "var(--accent-color)",
           error: "#ff6b6b",
@@ -2990,24 +3501,74 @@
           loading: `<div class="spinner"></div>`,
         };
 
-        statusDiv.style.display = "block";
-        statusDiv.style.background = "rgba(0, 0, 0, 0.3)";
-        statusDiv.style.borderLeft = `4px solid ${colors[type]}`;
-        statusDiv.innerHTML = `
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <span style="font-size: 20px;">${icons[type]}</span>
-            <div>
-              <div style="font-weight: 600; color: ${
-                colors[type]
-              }; text-transform: uppercase; font-size: 11px; margin-bottom: 5px;">
-                ${type === "loading" ? "RUNNING" : type.toUpperCase()}
-              </div>
-              <div style="color: var(--color-font);">
-                ${message}
+        let outputHtml = "";
+        if (output && output.trim()) {
+          // Limit output to first 100 lines for display
+          const lines = output.split("\n");
+          const truncated = lines.length > 100;
+          const displayOutput = lines.slice(0, 100).join("\n");
+
+          outputHtml = `
+            <div class="command-output">
+              <div class="output-header">Command Output:</div>
+              <pre>${escapeHtml(displayOutput)}${
+            truncated
+              ? "\n\n... (" + (lines.length - 100) + " more lines truncated)"
+              : ""
+          }</pre>
+            </div>
+          `;
+        }
+
+        // Show close button for completed tasks (not for loading)
+        const closeButton =
+          type !== "loading" && taskId
+            ? `<button class="task-close-btn" onclick="removeTaskItem('${taskId}')" title="Close">×</button>`
+            : "";
+
+        const taskHtml = `
+          <div class="task-item" style="border-left: 4px solid ${
+            colors[type]
+          };">
+            ${closeButton}
+            <div style="display: flex; align-items: flex-start; gap: 10px;">
+              <span style="font-size: 20px;">${icons[type]}</span>
+              <div style="flex: 1;">
+                <div style="font-weight: 600; color: ${
+                  colors[type]
+                }; text-transform: uppercase; font-size: 11px; margin-bottom: 5px;">
+                  ${type === "loading" ? "RUNNING" : type.toUpperCase()}
+                </div>
+                <div style="color: var(--color-font); margin-bottom: ${
+                  output ? "10px" : "0"
+                };">
+                  ${message}
+                </div>
+                ${outputHtml}
               </div>
             </div>
           </div>
         `;
+
+        // If taskId is provided, update or create specific task item
+        if (taskId) {
+          let taskElement = document.getElementById(taskId);
+          if (taskElement) {
+            // Update existing task
+            taskElement.outerHTML = `<div id="${taskId}">${taskHtml}</div>`;
+          } else {
+            // Create new task item
+            const newTask = document.createElement("div");
+            newTask.id = taskId;
+            newTask.innerHTML = taskHtml;
+            statusContainer.appendChild(newTask);
+          }
+        } else {
+          // Legacy: replace entire content (for backwards compatibility)
+          statusContainer.style.background = "rgba(0, 0, 0, 0.3)";
+          statusContainer.style.borderLeft = `4px solid ${colors[type]}`;
+          statusContainer.innerHTML = taskHtml;
+        }
       }
 
       /**
@@ -3247,5 +3808,48 @@
         }
       }
     </script>
+
+    <!-- Restart Confirmation Modal -->
+    <div
+      id="restartModal"
+      class="modal-overlay"
+      onclick="handleModalClick(event)"
+    >
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <div class="modal-title">Confirm Computer Restart</div>
+        </div>
+        <div class="modal-body">
+          <p>
+            You are about to restart the target device:
+            <strong id="restartTargetHost"></strong>
+          </p>
+          <p class="warning-text">
+            This will interrupt any work in progress on the remote computer.
+          </p>
+          <p>
+            A 10-second warning message will be displayed to users before the
+            restart occurs.
+          </p>
+          <p style="font-size: 13px; opacity: 0.8; margin-top: 15px">
+            Are you sure you want to proceed?
+          </p>
+        </div>
+        <div class="modal-footer">
+          <button
+            class="modal-btn modal-btn-cancel"
+            onclick="hideRestartModal()"
+          >
+            Cancel
+          </button>
+          <button
+            class="modal-btn modal-btn-confirm"
+            onclick="confirmRestart()"
+          >
+            Restart Computer
+          </button>
+        </div>
+      </div>
+    </div>
   </body>
 </html>

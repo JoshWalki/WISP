@@ -20,7 +20,7 @@ if "%TARGET_HOSTNAME%"=="" (
     echo Choose analysis target:
     echo.
     echo 1. Analyze this computer ^(%COMPUTERNAME%^)
-    echo 2. Analyze a remote computer
+    echo 2. Analyze a remote computer (likely not working due to security policy)
     echo.
     set /p "CHOICE=Enter your choice (1 or 2): "
 
@@ -33,7 +33,7 @@ if "%TARGET_HOSTNAME%"=="" (
         echo.
     ) else if "!CHOICE!"=="2" (
         echo.
-        set /p "TARGET_HOSTNAME=Enter hostname or IP address: "
+        set /p "TARGET_HOSTNAME=Enter hostname or IP address (likely not working due to security policy): "
         if "!TARGET_HOSTNAME!"=="" (
             echo [ERROR] No hostname entered. Exiting.
             pause
@@ -76,39 +76,57 @@ if "%TARGET_HOSTNAME%"=="" (
         exit /b 1
     )
 ) else (
-    set "IS_REMOTE=true"
-    set "REMOTE_PREFIX=\\%TARGET_HOSTNAME%\"
-    echo ===============================
-    echo    Remote System Analysis
-    echo ===============================
-    echo Target: %TARGET_HOSTNAME%
-    echo Source: %COMPUTERNAME%
-    echo ===============================
-    echo.
-    echo [*] Testing connectivity to %TARGET_HOSTNAME%...
+    :: Check if the provided hostname is the local computer
+    if /I "%TARGET_HOSTNAME%"=="%COMPUTERNAME%" (
+        set "IS_REMOTE=false"
+        set "REMOTE_PREFIX="
+        echo.
+        echo [*] Target hostname matches local computer
+        echo [*] Analyzing local computer: %COMPUTERNAME%
+        echo.
+    ) else if /I "%TARGET_HOSTNAME%"=="localhost" (
+        set "TARGET_HOSTNAME=%COMPUTERNAME%"
+        set "IS_REMOTE=false"
+        set "REMOTE_PREFIX="
+        echo.
+        echo [*] Target is localhost
+        echo [*] Analyzing local computer: %COMPUTERNAME%
+        echo.
+    ) else (
+        set "IS_REMOTE=true"
+        set "REMOTE_PREFIX=\\%TARGET_HOSTNAME%\"
+        echo ===============================
+        echo    Remote System Analysis
+        echo ===============================
+        echo Target: %TARGET_HOSTNAME%
+        echo Source: %COMPUTERNAME%
+        echo ===============================
+        echo.
+        echo [*] Testing connectivity to %TARGET_HOSTNAME%...
 
-    :: Test if target is reachable
-    ping -n 1 -w 2000 -4 %TARGET_HOSTNAME% >nul 2>&1
-    if errorlevel 1 (
-        echo [ERROR] Cannot reach %TARGET_HOSTNAME%
+        :: Test if target is reachable
+        ping -n 1 -w 2000 -4 %TARGET_HOSTNAME% >nul 2>&1
+        if errorlevel 1 (
+            echo [ERROR] Cannot reach %TARGET_HOSTNAME%
+            echo.
+            echo Possible issues:
+            echo - Computer is offline or powered off
+            echo - Hostname/IP address is incorrect
+            echo - Network connectivity issues
+            echo - Firewall blocking ping requests
+            echo.
+            echo Please verify:
+            echo 1. The computer name is correct: %TARGET_HOSTNAME%
+            echo 2. The target computer is powered on and connected
+            echo 3. You have network access to the target
+            echo.
+            pause
+            exit /b 1
+        )
+
+        echo [SUCCESS] %TARGET_HOSTNAME% is reachable
         echo.
-        echo Possible issues:
-        echo - Computer is offline or powered off
-        echo - Hostname/IP address is incorrect
-        echo - Network connectivity issues
-        echo - Firewall blocking ping requests
-        echo.
-        echo Please verify:
-        echo 1. The computer name is correct: %TARGET_HOSTNAME%
-        echo 2. The target computer is powered on and connected
-        echo 3. You have network access to the target
-        echo.
-        pause
-        exit /b 1
     )
-
-    echo [SUCCESS] %TARGET_HOSTNAME% is reachable
-    echo.
 )
 
 :: --- Get the directory where this script is located ---
@@ -225,7 +243,7 @@ systeminfo > "%TEMP_DIR%\systeminfo.txt" 2>&1
 reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion" > "%TEMP_DIR%\winbuild.txt" 2>&1
 
 echo [*] Step 2/10: Collecting storage information...
-wmic logicaldisk get Size,FreeSpace,Caption,DriveType,FileSystem,VolumeName /format:csv > "%TEMP_DIR%\disks.csv" 2>&1
+powershell -Command "Get-WmiObject Win32_LogicalDisk | Select-Object DeviceID, VolumeName, FileSystem, Size, FreeSpace, DriveType | Export-Csv '%TEMP_DIR%\disks.csv' -NoTypeInformation" 2>&1
 mountvol > "%TEMP_DIR%\mountvol.txt" 2>&1
 
 echo [*] Step 3/10: Collecting hardware information...
