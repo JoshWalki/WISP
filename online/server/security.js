@@ -11,7 +11,15 @@ function securityHeaders(req, res, next) {
   // Content Security Policy - prevents XSS attacks
   res.setHeader(
     'Content-Security-Policy',
-    "default-src 'self'; base-uri 'self'; font-src 'self' https: data:; form-action 'self'; frame-ancestors 'self'; img-src 'self' data:; object-src 'none'; script-src 'self'; script-src-attr 'none'; style-src 'self' https: 'unsafe-inline'; upgrade-insecure-requests"
+    "default-src 'self'; " +
+    "connect-src 'self' http://127.0.0.1:8765; " +
+    "img-src 'self' data:; " +
+    "font-src 'self'; " +
+    "style-src 'self' 'unsafe-inline'; " +
+    "script-src 'self'; " +
+    "base-uri 'self'; " +
+    "frame-ancestors 'self'; " +
+    "upgrade-insecure-requests"
   );
 
   // Cross-Origin Embedder Policy

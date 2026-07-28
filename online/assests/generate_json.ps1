@@ -213,13 +213,14 @@ try {
             $foundHeader = $false
 
             foreach ($line in $fileContent) {
-                # Look for the CSV header line (both Caption and DeviceID formats)
-                if ($line -match '^"?(Caption|DeviceID)"?') {
+                # Look for the CSV header line (WMIC includes Node,Caption,... or DeviceID)
+                if ($line -match '^"?(Node|Caption|DeviceID)"?') {
                     $foundHeader = $true
                     $csvLines += $line
                 }
                 # After finding header, collect all lines that look like CSV data
-                elseif ($foundHeader -and $line -match '^"?[A-Z]:"?') {
+                # WMIC format: COMPUTERNAME,C:,3,...
+                elseif ($foundHeader -and ($line -match '^"?[A-Z0-9\-_]+,"?[A-Z]:"?' -or $line -match '^"?[A-Z]:"?')) {
                     $csvLines += $line
                 }
             }
@@ -234,28 +235,36 @@ try {
                 Remove-Item $tempCsv -ErrorAction SilentlyContinue
 
                 # Support both WMIC format (Caption) and PowerShell format (DeviceID)
-                $diskData = $rawData | Where-Object { $_.Caption -or $_.DeviceID }
+                $diskData = $rawData | Where-Object {
+                    ($_.Caption -and $_.Caption.Trim() -ne '') -or
+                    ($_.DeviceID -and $_.DeviceID.Trim() -ne '')
+                }
 
                 $disks = @()
                 foreach ($disk in $diskData) {
                     $disks += @{
-                        caption = if ($disk.Caption) { $disk.Caption } else { $disk.DeviceID }
-                        driveType = $disk.DriveType
-                        fileSystem = $disk.FileSystem
-                        freeSpace = $disk.FreeSpace
-                        size = $disk.Size
-                        volumeName = $disk.VolumeName
+                        caption = if ($disk.Caption) { $disk.Caption.Trim() } else { $disk.DeviceID.Trim() }
+                        driveType = if ($disk.DriveType) { $disk.DriveType.Trim() } else { '' }
+                        fileSystem = if ($disk.FileSystem) { $disk.FileSystem.Trim() } else { '' }
+                        freeSpace = if ($disk.FreeSpace) { $disk.FreeSpace.Trim() } else { '0' }
+                        size = if ($disk.Size) { $disk.Size.Trim() } else { '0' }
+                        volumeName = if ($disk.VolumeName) { $disk.VolumeName.Trim() } else { '' }
                     }
                 }
-                $systemData.storage.logicalDisks = $disks
+
+                if ($disks.Count -gt 0) {
+                    $systemData.storage.logicalDisks = $disks
+                } else {
+                    $systemData.storage.logicalDisks = @{ error = 'No valid disk entries found in CSV data' }
+                }
             } else {
-                $systemData.storage.logicalDisks = @{ error = 'No valid disk data found in CSV' }
+                $systemData.storage.logicalDisks = @{ error = "No valid disk data found in CSV (found $($csvLines.Count) lines)" }
             }
         } else {
             $systemData.storage.logicalDisks = @{ error = 'disks.csv not found' }
         }
     } catch {
-        $systemData.storage.logicalDisks = @{ error = $_.Exception.Message }
+        $systemData.storage.logicalDisks = @{ error = "Failed to parse disks.csv: $($_.Exception.Message)" }
     }
 
     # Mount points

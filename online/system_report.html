@@ -427,7 +427,7 @@
         overflow-x: auto;
         font-size: 12px;
         font-family: "Consolas", "Monaco", "Courier New", monospace;
-        max-height: 400px;
+        max-height: 200px;
         overflow-y: auto;
         line-height: 1.5;
         color: #e0e0e0;
@@ -897,7 +897,7 @@
               <div style="margin: 10px">
                 <div style="font-weight: 600">Restart Computer</div>
                 <div style="font-size: 11px; opacity: 0.9">
-                  Restart with 10s warning
+                  Restart with 30s warning
                 </div>
               </div>
             </button>
@@ -1947,7 +1947,7 @@
             mountPoints?.error || "No data available"
           }</p>`;
         if (mountPoints.content) {
-          return `<pre style="max-height: 400px; overflow-y: auto;">${mountPoints.content}</pre>`;
+          return `<pre style="max-height: 200px; overflow-y: auto;">${mountPoints.content}</pre>`;
         }
         return "<p>No mount point information available</p>";
       }
@@ -2473,7 +2473,11 @@
           return `<p class="error">${
             drivers?.error || "No data available"
           }</p>`;
-        if (!drivers.list || !Array.isArray(drivers.list) || drivers.list.length === 0)
+        if (
+          !drivers.list ||
+          !Array.isArray(drivers.list) ||
+          drivers.list.length === 0
+        )
           return "<p>No driver information available</p>";
 
         // Store the full drivers data for pagination and search
@@ -2535,7 +2539,9 @@
         const tableContainer = document.getElementById("driversTable");
         if (!tableContainer) return;
 
-        const totalPages = Math.ceil(filteredDriversData.length / driversPerPage);
+        const totalPages = Math.ceil(
+          filteredDriversData.length / driversPerPage
+        );
         const startIdx = (currentDriversPage - 1) * driversPerPage;
         const endIdx = Math.min(
           startIdx + driversPerPage,
@@ -2581,7 +2587,8 @@
       }
 
       function renderDriversPagination(totalPages) {
-        const paginationContainer = document.getElementById("driversPagination");
+        const paginationContainer =
+          document.getElementById("driversPagination");
         if (!paginationContainer || totalPages <= 1) {
           if (paginationContainer) paginationContainer.innerHTML = "";
           return;
@@ -3272,18 +3279,19 @@
 
         // Show loading state with spinner
         console.log(
-          `[runRemoteTask] Sending request to: ${WISP_CONFIG.apiUrl}/run-sync/${taskName}/${targetHost}`
+          `[runRemoteTask] Sending request to: ${WISP_CONFIG.apiUrl}/run/${taskName}/${targetHost}`
         );
         showRemoteActionStatus(
           "loading",
-          `Running ${taskName} on ${targetHost}... This may take a few minutes.`,
-          null,
+          `Running ${taskName} on ${targetHost}... Live output will appear below.`,
+          "",
           taskId
         );
 
         try {
+          // Start task execution (async endpoint)
           const response = await fetch(
-            `${WISP_CONFIG.apiUrl}/run-sync/${taskName}/${targetHost}`,
+            `${WISP_CONFIG.apiUrl}/run/${taskName}/${targetHost}`,
             {
               method: "POST",
               headers: {
@@ -3321,66 +3329,149 @@
           const result = await response.json();
           console.log("[runRemoteTask] Response data:", result);
 
-          if (result.success) {
-            console.log(`[runRemoteTask] Task completed successfully`);
+          if (result.success && result.taskId) {
+            const serverTaskId = result.taskId;
+            console.log(
+              `[runRemoteTask] Task initiated with ID: ${serverTaskId}`
+            );
 
-            // Format output for display
-            let outputText = "";
-            if (result.stdout && result.stdout.trim()) {
-              outputText = result.stdout.trim();
-            } else if (result.stderr && result.stderr.trim()) {
-              outputText = result.stderr.trim();
-            }
-
-            // Show success message with output in status area
-            const successMsg = `Task '${taskName}' completed successfully on ${targetHost}`;
-            showRemoteActionStatus("success", successMsg, outputText, taskId);
-
-            // Simple toast notification
-            showToast("Task Complete", successMsg, "success", 5000);
-
-            // If this was a system-report task, automatically load the generated report
-            if (taskName === "system-report") {
-              setTimeout(async () => {
-                showRemoteActionStatus(
-                  "loading",
-                  "Loading generated report...",
-                  null,
-                  taskId
+            // Define the polling function
+            let pollInterval = null;
+            const pollTaskStatus = async () => {
+              try {
+                const statusResponse = await fetch(
+                  `${WISP_CONFIG.apiUrl}/task-status/${serverTaskId}`,
+                  {
+                    method: "GET",
+                    headers: {
+                      "X-WISP-Token": WISP_CONFIG.token,
+                    },
+                  }
                 );
-                try {
-                  await loadLatestReport(targetHost, taskId);
-                } catch (error) {
-                  console.error(
-                    "[runRemoteTask] Failed to auto-load report:",
-                    error
-                  );
-                  showRemoteActionStatus(
-                    "info",
-                    "Report generated! You can manually load the JSON file from the reports folder below.",
-                    null,
-                    taskId
-                  );
+
+                if (!statusResponse.ok) {
+                  console.error("[runRemoteTask] Failed to fetch task status");
+                  if (pollInterval) clearInterval(pollInterval);
+                  return;
                 }
-              }, 1000);
-            }
+
+                const statusResult = await statusResponse.json();
+
+                if (statusResult.success && statusResult.task) {
+                  const task = statusResult.task;
+
+                  // Use stdout primarily (most batch output goes there)
+                  // Only show stderr if stdout is empty
+                  let output = task.stdout || task.stderr || "";
+
+                  console.log(
+                    `[runRemoteTask] Status: ${task.status}, Stdout: ${
+                      (task.stdout || "").length
+                    }, Stderr: ${(task.stderr || "").length}`
+                  );
+
+                  // Update UI with live output
+                  if (task.status === "running") {
+                    showRemoteActionStatus(
+                      "loading",
+                      `Running ${taskName} on ${targetHost}...`,
+                      output,
+                      taskId
+                    );
+                  } else if (task.status === "completed") {
+                    if (pollInterval) clearInterval(pollInterval);
+                    console.log(`[runRemoteTask] Task completed successfully`);
+
+                    const successMsg = `Task '${taskName}' completed successfully on ${targetHost}`;
+                    showRemoteActionStatus(
+                      "success",
+                      successMsg,
+                      output,
+                      taskId
+                    );
+                    showToast("Task Complete", successMsg, "success", 5000);
+
+                    // If this was a system-report task, automatically load the generated report
+                    if (taskName === "system-report") {
+                      setTimeout(async () => {
+                        showRemoteActionStatus(
+                          "loading",
+                          "Loading generated report...",
+                          null,
+                          taskId
+                        );
+
+                        // Retry logic: Try up to 3 times with increasing delays
+                        let lastError = null;
+                        for (let attempt = 1; attempt <= 3; attempt++) {
+                          try {
+                            console.log(`[runRemoteTask] Auto-load attempt ${attempt}/3 for ${targetHost}`);
+                            await loadLatestReport(targetHost, taskId);
+                            // Success! Exit the retry loop
+                            return;
+                          } catch (error) {
+                            lastError = error;
+                            console.warn(
+                              `[runRemoteTask] Auto-load attempt ${attempt}/3 failed:`,
+                              error.message
+                            );
+
+                            // If this isn't the last attempt, wait before retrying
+                            if (attempt < 3) {
+                              const retryDelay = attempt * 2000; // 2s, 4s
+                              console.log(`[runRemoteTask] Retrying in ${retryDelay}ms...`);
+                              await new Promise(resolve => setTimeout(resolve, retryDelay));
+                            }
+                          }
+                        }
+
+                        // All attempts failed
+                        console.error(
+                          "[runRemoteTask] Failed to auto-load report after 3 attempts:",
+                          lastError
+                        );
+                        showRemoteActionStatus(
+                          "warning",
+                          `Report generated but auto-load failed: ${lastError.message}. You can manually load the JSON file from the reports folder below.`,
+                          null,
+                          taskId
+                        );
+                      }, 3000); // Increased initial delay to 3 seconds
+                    }
+                  } else if (task.status === "failed") {
+                    if (pollInterval) clearInterval(pollInterval);
+                    console.error(`[runRemoteTask] Task failed: ${task.error}`);
+
+                    const errorMsg = task.error || "Task execution failed";
+                    showRemoteActionStatus("error", errorMsg, output, taskId);
+                    showToast("Remote Task Failed", errorMsg, "error", 5000);
+                  }
+                }
+              } catch (pollError) {
+                console.error(
+                  "[runRemoteTask] Error polling task status:",
+                  pollError
+                );
+              }
+            };
+
+            // Poll immediately, then every 1 second for live updates
+            pollTaskStatus();
+            pollInterval = setInterval(pollTaskStatus, 1000);
           } else {
-            console.error(`[runRemoteTask] Task failed: ${result.error}`);
-
-            // Format error output for display
-            const errorMsg = result.error || "Task execution failed";
-            let errorOutput = "";
-            if (result.stderr && result.stderr.trim()) {
-              errorOutput = result.stderr.trim();
-            } else if (result.stdout && result.stdout.trim()) {
-              errorOutput = result.stdout.trim();
-            }
-
-            // Show error message with output in status area
-            showRemoteActionStatus("error", errorMsg, errorOutput, taskId);
-
-            // Simple toast notification
-            showToast("Remote Task Failed", errorMsg, "error", 5000);
+            console.error(`[runRemoteTask] Task initiation failed`);
+            showRemoteActionStatus(
+              "error",
+              "Failed to initiate task",
+              null,
+              taskId
+            );
+            showToast(
+              "Remote Task Failed",
+              "Failed to initiate task",
+              "error",
+              5000
+            );
           }
         } catch (error) {
           console.error("[runRemoteTask] Exception caught:", error);
@@ -3416,7 +3507,18 @@
           );
 
           if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            // Try to get the error message from the response body
+            let errorDetail = response.statusText;
+            try {
+              const errorResult = await response.json();
+              if (errorResult.error) {
+                errorDetail = errorResult.error;
+              }
+            } catch (e) {
+              // If JSON parsing fails, use statusText
+            }
+
+            throw new Error(`HTTP ${response.status}: ${errorDetail}`);
           }
 
           const result = await response.json();
@@ -3453,7 +3555,12 @@
             throw new Error(result.error || "Failed to load report");
           }
         } catch (error) {
-          console.error("[loadLatestReport] Error:", error);
+          console.error("[loadLatestReport] Error details:", {
+            hostname,
+            message: error.message,
+            apiUrl: WISP_CONFIG.apiUrl,
+            hasToken: !!WISP_CONFIG.token
+          });
           throw error;
         }
       }
@@ -3495,23 +3602,36 @@
         };
 
         const icons = {
-          success: "✅",
-          error: "❌",
-          info: "⏳",
+          success: "✓",
+          error: "✕",
+          info: "ℹ",
           loading: `<div class="spinner"></div>`,
         };
 
         let outputHtml = "";
-        if (output && output.trim()) {
-          // Limit output to first 100 lines for display
-          const lines = output.split("\n");
+        // Always show output section for running/completed/failed tasks
+        if (output !== null && output !== undefined) {
+          // Clean up output: remove excessive whitespace and blank lines
+          const lines = output
+            .split("\n")
+            .map((line) => line.trimEnd()) // Remove trailing whitespace from each line
+            .filter((line, index, array) => {
+              // Keep non-empty lines
+              if (line.trim().length > 0) return true;
+              // Keep first empty line after content, remove consecutive empty lines
+              if (index > 0 && array[index - 1].trim().length > 0) return true;
+              return false;
+            });
+
           const truncated = lines.length > 100;
           const displayOutput = lines.slice(0, 100).join("\n");
 
           outputHtml = `
-            <div class="command-output">
+            <div class="command-output" id="output-${taskId}">
               <div class="output-header">Command Output:</div>
-              <pre>${escapeHtml(displayOutput)}${
+              <pre style="max-height: 200px; overflow-y: auto;">${
+                escapeHtml(displayOutput) || "(waiting for output...)"
+              }${
             truncated
               ? "\n\n... (" + (lines.length - 100) + " more lines truncated)"
               : ""
@@ -3563,6 +3683,16 @@
             newTask.innerHTML = taskHtml;
             statusContainer.appendChild(newTask);
           }
+
+          // Auto-scroll to bottom of output if present
+          setTimeout(() => {
+            const outputElement = document.querySelector(
+              `#output-${taskId} pre`
+            );
+            if (outputElement) {
+              outputElement.scrollTop = outputElement.scrollHeight;
+            }
+          }, 0);
         } else {
           // Legacy: replace entire content (for backwards compatibility)
           statusContainer.style.background = "rgba(0, 0, 0, 0.3)";
@@ -3828,7 +3958,7 @@
             This will interrupt any work in progress on the remote computer.
           </p>
           <p>
-            A 10-second warning message will be displayed to users before the
+            A 30 second warning message will be displayed to users before the
             restart occurs.
           </p>
           <p style="font-size: 13px; opacity: 0.8; margin-top: 15px">

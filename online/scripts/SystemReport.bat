@@ -30,6 +30,16 @@ if "%TARGET_HOSTNAME%"=="" (
     exit /b 1
 )
 
+:: --- Resolve 'localhost' to actual computer name ---
+if /i "%TARGET_HOSTNAME%"=="localhost" (
+    set "TARGET_HOSTNAME=%COMPUTERNAME%"
+    echo [*] Resolved 'localhost' to: %COMPUTERNAME%
+)
+if /i "%TARGET_HOSTNAME%"=="127.0.0.1" (
+    set "TARGET_HOSTNAME=%COMPUTERNAME%"
+    echo [*] Resolved '127.0.0.1' to: %COMPUTERNAME%
+)
+
 :: Determine if this is a local or remote analysis
 if /i "%TARGET_HOSTNAME%"=="%COMPUTERNAME%" (
     set "IS_REMOTE=false"
@@ -241,9 +251,13 @@ echo ===============================
 echo All detailed files saved to: !REPORT_DIR!\details\
 echo.
 echo [*] Now generating comprehensive JSON report using PowerShell...
+echo [*] Processing system information...
+echo [*] This may take several minutes...
 
 :: Call the separate PowerShell script
 powershell -NoProfile -ExecutionPolicy Bypass -File "%ROOT_DIR%\assests\generate_json.ps1" -TempDir "%TEMP_DIR%" -JsonFile "%JSON_FILE%" -Machine "!MACHINE!" -Username "%USERNAME%" -UserDomain "%USERDOMAIN%" -Timestamp "!TS!" -IsAdminString "!IS_ADMIN!" -IsRemoteString "!IS_REMOTE!"
+
+echo [*] JSON generation complete
 
 set PS_EXIT_CODE=%errorlevel%
 

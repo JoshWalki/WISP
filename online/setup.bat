@@ -76,8 +76,7 @@ if %errorlevel% neq 0 (
 
     REM Download Node.js LTS MSI (using known stable LTS URL)
     set "NODE_MSI=!TEMP_DIR!\nodejs.msi"
-    set "NODE_URL=https://nodejs.org/dist/v25.0.0/node-v20.18.0-!NODE_ARCH!.msi"
-
+    set "NODE_URL=https://nodejs.org/dist/v24.11.0/node-v24.11.0-!NODE_ARCH!.msi"
     echo Downloading Node.js from: !NODE_URL!
     echo This may take a few minutes...
     echo.
@@ -224,19 +223,10 @@ echo.
 set "PSEXEC_FOUND=0"
 set "PSEXEC_PATH="
 
-REM Check common locations
-if exist "C:\SysinternalsSuite\PsExec.exe" (
-    set "PSEXEC_PATH=C:\SysinternalsSuite\PsExec.exe"
-    set "PSEXEC_FOUND=1"
-)
+REM Check if sound in root SysinternalsSuite directory
 
 if exist "%SCRIPT_DIR%SysinternalsSuite\PsExec.exe" (
     set "PSEXEC_PATH=%SCRIPT_DIR%SysinternalsSuite\PsExec.exe"
-    set "PSEXEC_FOUND=1"
-)
-
-if exist "%SCRIPT_DIR%PsExec.exe" (
-    set "PSEXEC_PATH=%SCRIPT_DIR%PsExec.exe"
     set "PSEXEC_FOUND=1"
 )
 
@@ -247,15 +237,10 @@ if "!PSEXEC_FOUND!"=="1" (
     "!PSEXEC_PATH!" /accepteula >nul 2>&1
     echo [SUCCESS] PsExec EULA accepted
 ) else (
-    echo [WARNING] PsExec not found in common locations!
+    echo [WARNING] PsExec not found in root SysinternalsSuite directory!
     echo.
-    echo Please download Sysinternals Suite from:
+    echo Please download Sysinternals Suite and place in root/SysinternalsSuite/
     echo https://download.sysinternals.com/files/SysinternalsSuite.zip
-    echo.
-    echo Extract to one of these locations:
-    echo   - C:\SysinternalsSuite\
-    echo   - %SCRIPT_DIR%SysinternalsSuite\
-    echo   - %SCRIPT_DIR%
     echo.
     echo You can continue setup and install PsExec later.
     echo.
@@ -305,7 +290,7 @@ icacls "C:\WISP\scripts" /grant:r Administrators:(OI)(CI)F >nul 2>&1
 if %errorlevel% equ 0 (
     echo [SUCCESS] Permissions set successfully
 ) else (
-    echo [WARNING] Failed to set permissions - you may need to set them manually
+    echo [WARNING] Failed to set admin-only permissions - you may need to set them manually
 )
 
 echo.
@@ -381,55 +366,11 @@ cls
 echo.
 echo ============================================================================
 echo                        SETUP COMPLETED SUCCESSFULLY!
+echo.
+echo.
+echo                     CLICK [ENTER] TO START THE SERVICE
 echo ============================================================================
 echo.
-echo Your WISP Companion service is now configured.
-echo.
-echo Security Token has been saved to .env file
-echo.
-echo NOTE: The security token will be automatically loaded from the server
-echo when you open system_report.html in your browser. No manual configuration needed!
-echo.
-echo ============================================================================
-echo NEXT STEPS:
-echo ============================================================================
-echo.
-echo 1. Start the service:
-echo    npm start   (or run start-service.bat)
-echo.
-echo 2. Test the health endpoint:
-echo    Open browser: http://127.0.0.1:8765/health
-echo.
-echo 3. Open system_report.html in your browser
-echo    The configuration will load automatically!
-echo.
-echo 4. Use the Remote Actions section to execute tasks
-echo.
-echo 5. Load JSON reports or generate new ones
-echo.
-echo ============================================================================
-echo SECURITY CHECKLIST:
-echo ============================================================================
-echo.
-echo [ ] Token saved to .env file (automatic)
-echo [ ] PsExec installed and EULA accepted
-echo [ ] Scripts copied to C:\WISP\scripts
-echo [ ] NTFS permissions set (Administrators only)
-echo [ ] Service starts without errors
-echo [ ] Firewall configured to restrict SMB access
-echo [ ] Audit logging enabled on target endpoints
-echo.
-echo ============================================================================
-echo DOCUMENTATION:
-echo ============================================================================
-echo.
-echo - Full setup guide: SETUP.md
-echo - API documentation: README.md
-echo - Audit logs: logs\audit.log
-echo.
-echo ============================================================================
-echo.
-echo Press any key to start the service now, or close this window to exit.
 pause >nul
 
 REM Start the service

@@ -10,8 +10,9 @@
 class RateLimiter {
   constructor(options = {}) {
     this.windowMs = options.windowMs || 60000; // Default: 1 minute
-    this.maxRequests = options.max || 100; // Default: 100 requests per window
-    this.message = options.message || 'Too many requests, please try again later';
+    this.maxRequests = options.max || 5000; // Default: 100 requests per window
+    this.message =
+      options.message || "Too many requests, please try again later";
 
     // Store: { ip: { count: number, resetTime: number } }
     this.requests = new Map();
@@ -47,7 +48,7 @@ class RateLimiter {
         // First request or window expired - reset
         ipData = {
           count: 1,
-          resetTime: now + this.windowMs
+          resetTime: now + this.windowMs,
         };
         this.requests.set(ip, ipData);
         return next();
@@ -61,7 +62,7 @@ class RateLimiter {
         return res.status(429).json({
           success: false,
           error: this.message,
-          retryAfter: Math.ceil((ipData.resetTime - now) / 1000)
+          retryAfter: Math.ceil((ipData.resetTime - now) / 1000),
         });
       }
 
@@ -81,5 +82,5 @@ function createRateLimiter(options) {
 }
 
 module.exports = {
-  createRateLimiter
+  createRateLimiter,
 };

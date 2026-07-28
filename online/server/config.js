@@ -10,6 +10,14 @@ const fs = require("fs");
 const { loadEnv } = require("./env-loader");
 loadEnv();
 
+// Fail closed if WISP_TOKEN is not set
+if (!process.env.WISP_TOKEN) {
+  console.error(
+    "[FATAL] WISP_TOKEN is not set. Create .env or run generate-token."
+  );
+  process.exit(1);
+}
+
 /**
  * Find PsExec in common locations
  */
@@ -90,48 +98,57 @@ module.exports = {
       script: "SystemReport.bat",
       args: [],
       runAs: "admin", // requires admin rights
+      useSystemAccount: true, // Run as SYSTEM to avoid session/credential issues
+      timeout: 900000, // 15 minutes - comprehensive reports can take time
     },
     gpupdate: {
       description: "Force Group Policy update",
       script: "cmd.exe",
       args: ["/c", "gpupdate", "/force"],
       runAs: "admin",
+      interactive: true,
     },
     "test-connection": {
       description: "Test network connectivity",
       script: "cmd.exe",
       args: ["/c", "ping", "-n", "4", "127.0.0.1"],
       runAs: "user",
+      interactive: true,
     },
     "ipconfig-renew": {
       description: "Renew DHCP lease",
       script: "cmd.exe",
       args: ["/c", "ipconfig", "/renew"],
       runAs: "admin",
+      interactive: true,
     },
     "ipconfig-release": {
       description: "Release DHCP lease",
       script: "cmd.exe",
       args: ["/c", "ipconfig", "/release"],
       runAs: "admin",
+      interactive: true,
     },
     "ipconfig-flushdns": {
       description: "Flush DNS resolver cache",
       script: "cmd.exe",
       args: ["/c", "ipconfig", "/flushdns"],
       runAs: "admin",
+      interactive: true,
     },
     "dism-restorehealth": {
       description: "DISM repair Windows image",
       script: "cmd.exe",
       args: ["/c", "DISM", "/Online", "/Cleanup-Image", "/RestoreHealth"],
       runAs: "admin",
+      interactive: true,
     },
     "sfc-scannow": {
       description: "System File Checker scan",
       script: "cmd.exe",
       args: ["/c", "sfc", "/scannow"],
       runAs: "admin",
+      interactive: true,
     },
     "restart-computer": {
       description: "Restart computer with 10 second warning",
@@ -141,12 +158,12 @@ module.exports = {
         "shutdown",
         "/r",
         "/t",
-        "10",
+        "30",
         "/c",
-        '"WISP: System restart initiated by administrator. Please save your work."',
+        '"Your device will restart in 30 seconds. Please save your work."',
       ],
       runAs: "admin",
-      interactive: true  // Run interactively so shutdown message is displayed to users
+      interactive: true, // Run interactively so shutdown message is displayed to users
     },
   },
 
@@ -169,14 +186,14 @@ module.exports = {
 
   // Rate limiting
   rateLimit: {
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // limit each IP to 100 requests per windowMs
+    windowMs: 1 * 60 * 1000, // 1 minute
+    max: 1000, // limit each IP to 1000 requests per minute (supports polling every second)
     message: "Too many requests from this IP, please try again later",
   },
 
   // CORS settings (localhost only)
   cors: {
-    origin: ["http://127.0.0.1:8765", "http://localhost:8765", "null"], // 'null' for file:// protocol
+    origin: ["http://127.0.0.1:8765", "http://localhost:8765"],
     credentials: true,
     methods: ["GET", "POST"],
     allowedHeaders: ["Content-Type", "X-WISP-Token"],

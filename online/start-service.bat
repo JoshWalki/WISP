@@ -35,7 +35,7 @@ REM Check .env
 if not exist ".env" (
     echo [ERROR] .env file not found!
     echo.
-    echo Please run: npm run generate-token
+    echo Please run setup.bat
     echo.
     pause
     exit /b 1

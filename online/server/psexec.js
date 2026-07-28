@@ -8,6 +8,7 @@ const fs = require("fs");
 const path = require("path");
 const config = require("./config");
 const { logExecution, logError } = require("./logger");
+const taskTracker = require("./task-tracker");
 
 /**
  * Check if PsExec exists
@@ -35,6 +36,7 @@ function getPsExecErrorMessage(exitCode, stderr) {
     1219: "Multiple connections to a server using more than one username are not allowed",
     1326: "Invalid username or password",
     1327: "Account restrictions prevent login",
+    1385: "Logon failure - User not granted requested logon type (add interactive: true to task config)",
     1396: "Login failure - Check credentials",
     1722: "RPC server unavailable - Check firewall and Windows Remote Management settings",
   };
@@ -48,9 +50,11 @@ function getPsExecErrorMessage(exitCode, stderr) {
     if (hasCredentials) {
       return `${baseMessage}. The provided credentials are invalid or do not have admin rights on the target machine.`;
     } else {
-      return `${baseMessage}. The service account does not have admin rights on the target machine. Either:\n` +
-             `1. Run the service as a domain admin account, OR\n` +
-             `2. Configure explicit credentials in .env (PSEXEC_USERNAME, PSEXEC_PASSWORD)`;
+      return (
+        `${baseMessage}. The service account does not have admin rights on the target machine. Either:\n` +
+        `1. Run the service as a domain admin account, OR\n` +
+        `2. Configure explicit credentials in .env (PSEXEC_USERNAME, PSEXEC_PASSWORD)`
+      );
     }
   }
 
@@ -91,10 +95,23 @@ function buildPsExecArgs(hostname, task) {
     args.push("-h"); // Run with elevated token
   }
 
+  // Special handling for system-report task - use SYSTEM account to avoid session issues
+  if (task.useSystemAccount) {
+    args.push("-s"); // Run as SYSTEM account (bypasses session/interactive issues)
+  }
   // Run in background (no interaction) - unless task requires interactive mode
   // Interactive mode is needed for tasks like shutdown that display messages to users
-  if (!task.interactive) {
-    args.push("-d");
+  else if (task.interactive) {
+    // Interactive mode - required for some local accounts
+    // If session is specified, use -i [session] to show window in that user's session
+    // Otherwise, use -i alone (defaults to Session 0, which is invisible)
+    if (task.session) {
+      args.push("-i", task.session.toString());
+    } else {
+      args.push("-i");
+    }
+  } else {
+    args.push("-d"); // Detached mode - don't wait for process
   }
 
   // Add script/command and its arguments
@@ -110,6 +127,9 @@ function buildPsExecArgs(hostname, task) {
     if (!fs.existsSync(scriptPath)) {
       throw new Error(`Script not found: ${scriptPath}`);
     }
+
+    // Copy script to remote machine with -c flag
+    args.push("-c");
 
     if (task.script.endsWith(".bat")) {
       args.push("cmd.exe", "/c", scriptPath);
@@ -148,7 +168,7 @@ function buildPsExecArgs(hostname, task) {
 /**
  * Execute task locally without PsExec
  */
-async function executeLocalTask(taskName, task, metadata = {}) {
+async function executeLocalTask(taskName, task, metadata = {}, taskId = null) {
   const hostname = require("os").hostname();
 
   let command, args;
@@ -191,27 +211,47 @@ async function executeLocalTask(taskName, task, metadata = {}) {
       windowsHide: false, // Show window for debugging
       detached: false, // Don't detach - wait for completion
       stdio: ["ignore", "pipe", "pipe"],
+      env: { ...process.env, PYTHONUNBUFFERED: "1" }, // Disable Python buffering
     });
 
     let stdout = "";
     let stderr = "";
 
     if (proc.stdout) {
+      proc.stdout.setEncoding("utf8"); // Set encoding for immediate string conversion
+      proc.stdout.resume(); // Force stream to flowing mode to prevent buffering
       proc.stdout.on("data", (data) => {
-        stdout += data.toString();
+        const output = data.toString();
+        stdout += output;
+        // Emit incremental output to task tracker if taskId is provided
+        if (taskId) {
+          taskTracker.appendStdout(taskId, output);
+        }
       });
     }
 
     if (proc.stderr) {
+      proc.stderr.setEncoding("utf8"); // Set encoding for immediate string conversion
+      proc.stderr.resume(); // Force stream to flowing mode to prevent buffering
       proc.stderr.on("data", (data) => {
-        stderr += data.toString();
+        const output = data.toString();
+        stderr += output;
+        // Emit incremental output to task tracker if taskId is provided
+        if (taskId) {
+          taskTracker.appendStderr(taskId, output);
+          console.log(
+            `[executeLocalTask] Appended stderr (${output.length} chars) to task ${taskId}`
+          );
+        }
       });
     }
 
+    // Set timeout (use task-specific timeout if defined, otherwise use global default)
+    const timeoutMs = task.timeout || config.psexec.timeout;
     const timeout = setTimeout(() => {
       proc.kill();
       reject(new Error("Execution timeout exceeded"));
-    }, config.psexec.timeout);
+    }, timeoutMs);
 
     proc.on("close", (code) => {
       clearTimeout(timeout);
@@ -231,6 +271,10 @@ async function executeLocalTask(taskName, task, metadata = {}) {
           status: "completed",
           exitCode: code,
         });
+        // Update task tracker if taskId is provided
+        if (taskId) {
+          taskTracker.completeTask(taskId, result);
+        }
         resolve(result);
       } else {
         logError(new Error(`Task exited with code ${code}`), {
@@ -238,6 +282,10 @@ async function executeLocalTask(taskName, task, metadata = {}) {
           hostname,
           stderr: stderr.trim(),
         });
+        // Update task tracker if taskId is provided
+        if (taskId) {
+          taskTracker.failTask(taskId, `Task exited with code ${code}`);
+        }
         resolve(result); // Still resolve for local execution
       }
     });
@@ -257,9 +305,15 @@ async function executeLocalTask(taskName, task, metadata = {}) {
  * @param {string} taskName - Name of the task from allow-list
  * @param {string} hostname - Target hostname
  * @param {object} metadata - Additional execution metadata
+ * @param {string} taskId - Optional task ID for tracking
  * @returns {Promise} Promise that resolves with execution result
  */
-async function executeRemoteTask(taskName, hostname, metadata = {}) {
+async function executeRemoteTask(
+  taskName,
+  hostname,
+  metadata = {},
+  taskId = null
+) {
   try {
     // Get task configuration
     const task = config.allowedTasks[taskName];
@@ -275,7 +329,7 @@ async function executeRemoteTask(taskName, hostname, metadata = {}) {
       hostname === "127.0.0.1"
     ) {
       // Execute locally without PsExec
-      return executeLocalTask(taskName, task, metadata);
+      return executeLocalTask(taskName, task, metadata, taskId);
     }
 
     // Verify PsExec exists for remote execution
@@ -296,6 +350,7 @@ async function executeRemoteTask(taskName, hostname, metadata = {}) {
         windowsHide: true,
         detached: true,
         stdio: ["ignore", "pipe", "pipe"],
+        env: { ...process.env, PYTHONUNBUFFERED: "1" }, // Disable Python buffering
       });
 
       let stdout = "";
@@ -303,22 +358,43 @@ async function executeRemoteTask(taskName, hostname, metadata = {}) {
 
       // Capture output
       if (psexec.stdout) {
+        psexec.stdout.setEncoding("utf8"); // Set encoding for immediate string conversion
+        psexec.stdout.resume(); // Force stream to flowing mode to prevent buffering
         psexec.stdout.on("data", (data) => {
-          stdout += data.toString();
+          const output = data.toString();
+          stdout += output;
+          // Emit incremental output to task tracker if taskId is provided
+          if (taskId) {
+            taskTracker.appendStdout(taskId, output);
+            console.log(
+              `[executeRemoteTask] Appended stdout (${output.length} chars) to task ${taskId}`
+            );
+          }
         });
       }
 
       if (psexec.stderr) {
+        psexec.stderr.setEncoding("utf8"); // Set encoding for immediate string conversion
+        psexec.stderr.resume(); // Force stream to flowing mode to prevent buffering
         psexec.stderr.on("data", (data) => {
-          stderr += data.toString();
+          const output = data.toString();
+          stderr += output;
+          // Emit incremental output to task tracker if taskId is provided
+          if (taskId) {
+            taskTracker.appendStderr(taskId, output);
+            console.log(
+              `[executeRemoteTask] Appended stderr (${output.length} chars) to task ${taskId}`
+            );
+          }
         });
       }
 
-      // Set timeout
+      // Set timeout (use task-specific timeout if defined, otherwise use global default)
+      const timeoutMs = task.timeout || config.psexec.timeout;
       const timeout = setTimeout(() => {
         psexec.kill();
         reject(new Error("Execution timeout exceeded"));
-      }, config.psexec.timeout);
+      }, timeoutMs);
 
       // Handle process completion
       psexec.on("close", (code) => {
@@ -339,6 +415,10 @@ async function executeRemoteTask(taskName, hostname, metadata = {}) {
             status: "completed",
             exitCode: code,
           });
+          // Update task tracker if taskId is provided
+          if (taskId) {
+            taskTracker.completeTask(taskId, result);
+          }
           resolve(result);
         } else {
           const errorMessage = getPsExecErrorMessage(code, stderr.trim());
@@ -351,6 +431,10 @@ async function executeRemoteTask(taskName, hostname, metadata = {}) {
               stderr: stderr.trim(),
             }
           );
+          // Update task tracker if taskId is provided
+          if (taskId) {
+            taskTracker.failTask(taskId, errorMessage);
+          }
           reject(new Error(`${errorMessage}\n\nDetails: ${stderr.trim()}`));
         }
       });
@@ -358,6 +442,10 @@ async function executeRemoteTask(taskName, hostname, metadata = {}) {
       psexec.on("error", (error) => {
         clearTimeout(timeout);
         logError(error, { taskName, hostname });
+        // Update task tracker if taskId is provided
+        if (taskId) {
+          taskTracker.failTask(taskId, error.message);
+        }
         reject(error);
       });
 

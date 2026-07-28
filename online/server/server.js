@@ -13,6 +13,7 @@ const { executeRemoteTask, getAvailableTasks, checkPsExec } = require('./psexec'
 const { logger, logSecurity } = require('./logger');
 const { securityHeaders } = require('./security');
 const { createRateLimiter } = require('./rate-limiter');
+const taskTracker = require('./task-tracker');
 
 const app = express();
 
@@ -28,8 +29,9 @@ app.use((req, res, next) => {
   const origin = req.headers.origin;
   const allowedOrigins = ['http://127.0.0.1:8765', 'http://localhost:8765', 'null'];
 
-  if (allowedOrigins.includes(origin) || !origin) {
-    res.setHeader('Access-Control-Allow-Origin', origin || '*');
+  // Allow null origin (for file:// protocol when opening HTML files directly)
+  if (allowedOrigins.includes(origin) || origin === null || origin === 'null') {
+    res.setHeader('Access-Control-Allow-Origin', origin || 'null');
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-WISP-Token');
@@ -184,11 +186,21 @@ app.post('/run/:task/:host', validateToken, async (req, res) => {
     const sanitizedHost = hostValidation.hostname;
     const task = taskValidation.task;
 
+    // Generate unique task ID
+    const taskId = `task-${taskName}-${sanitizedHost}-${Date.now()}`;
+
+    // Create task in tracker
+    taskTracker.createTask(taskId, taskName, sanitizedHost, {
+      username: process.env.USERNAME || 'UNKNOWN',
+      ip: clientIp
+    });
+
     // Fire-and-forget execution (return 202 Accepted immediately)
     // PsExec will run in background
     res.status(202).json({
       success: true,
       message: `Task '${taskName}' initiated on ${sanitizedHost}`,
+      taskId: taskId,
       task: {
         name: taskName,
         description: task.description,
@@ -197,11 +209,11 @@ app.post('/run/:task/:host', validateToken, async (req, res) => {
       timestamp: new Date().toISOString()
     });
 
-    // Execute task asynchronously
+    // Execute task asynchronously with task tracking
     executeRemoteTask(taskName, sanitizedHost, {
       username: process.env.USERNAME || 'UNKNOWN',
       ip: clientIp
-    }).catch(error => {
+    }, taskId).catch(error => {
       // Error is already logged in psexec.js
       logger.error('Background task failed', {
         taskName,
@@ -224,15 +236,68 @@ app.post('/run/:task/:host', validateToken, async (req, res) => {
 });
 
 /**
+ * Get task status and live output (requires auth)
+ * GET /task-status/:taskId
+ *
+ * Polls for task status, stdout, and stderr
+ */
+app.get('/task-status/:taskId', validateToken, (req, res) => {
+  const { taskId } = req.params;
+
+  try {
+    const task = taskTracker.getTask(taskId);
+
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        error: 'Task not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      task: {
+        taskId: task.taskId,
+        taskName: task.taskName,
+        hostname: task.hostname,
+        status: task.status,
+        stdout: task.stdout,
+        stderr: task.stderr,
+        startTime: task.startTime,
+        endTime: task.endTime,
+        error: task.error
+      }
+    });
+  } catch (error) {
+    logger.error('Failed to get task status', {
+      taskId,
+      error: error.message
+    });
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
  * Get the latest report for a host (requires auth)
  * GET /reports/:host/latest
  */
 app.get('/reports/:host/latest', validateToken, (req, res) => {
-  const { host } = req.params;
+  let { host } = req.params;
   const fs = require('fs');
   const path = require('path');
+  const os = require('os');
 
   logger.info(`Fetching latest report for host: ${host}`);
+
+  // Handle 'localhost' by converting to actual hostname
+  if (host.toLowerCase() === 'localhost' || host === '127.0.0.1') {
+    const actualHostname = os.hostname();
+    logger.info(`Converting 'localhost' to actual hostname: ${actualHostname}`);
+    host = actualHostname;
+  }
 
   try {
     const reportsDir = path.join(__dirname, '..', 'reports');
@@ -250,11 +315,19 @@ app.get('/reports/:host/latest', validateToken, (req, res) => {
     // Find all directories starting with the hostname
     const allDirs = fs.readdirSync(reportsDir);
     logger.info(`All directories in reports: ${allDirs.join(', ')}`);
+    logger.info(`Looking for directories starting with: "${host.toLowerCase()}_"`);
 
     const dirs = allDirs
       .filter(dir => {
         const stat = fs.statSync(path.join(reportsDir, dir));
-        return stat.isDirectory() && dir.toLowerCase().startsWith(host.toLowerCase() + '_');
+        const isDir = stat.isDirectory();
+        const dirLower = dir.toLowerCase();
+        const hostLower = host.toLowerCase();
+        const matches = dirLower.startsWith(hostLower + '_');
+
+        logger.info(`  Checking: "${dir}" | isDir=${isDir} | dirLower="${dirLower}" | hostLower="${hostLower}" | matches=${matches}`);
+
+        return isDir && matches;
       })
       .map(dir => ({
         name: dir,

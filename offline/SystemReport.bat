@@ -20,9 +20,8 @@ if "%TARGET_HOSTNAME%"=="" (
     echo Choose analysis target:
     echo.
     echo 1. Analyze this computer ^(%COMPUTERNAME%^)
-    echo 2. Analyze a remote computer (likely not working due to security policy)
     echo.
-    set /p "CHOICE=Enter your choice (1 or 2): "
+    set /p "CHOICE=Enter your choice (1): "
 
     if "!CHOICE!"=="1" (
         set "TARGET_HOSTNAME=%COMPUTERNAME%"
@@ -71,7 +70,7 @@ if "%TARGET_HOSTNAME%"=="" (
         echo ===============================
         echo.
     ) else (
-        echo [ERROR] Invalid choice. Please enter 1 or 2.
+        echo [ERROR] Invalid choice. Please enter 1.
         pause
         exit /b 1
     )
