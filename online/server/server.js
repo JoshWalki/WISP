@@ -9,7 +9,8 @@
 const express = require('express');
 const config = require('./config');
 const { validateToken, validateTask, validateHost } = require('./auth');
-const { executeRemoteTask, getAvailableTasks, checkPsExec } = require('./psexec');
+const { executeRemoteTask, getAvailableTasks, checkPsExec, captureScreenshot } = require('./psexec');
+const { listProfiles, deleteProfile } = require('./profiles');
 const { logger, logSecurity } = require('./logger');
 const { securityHeaders } = require('./security');
 const { createRateLimiter } = require('./rate-limiter');
@@ -186,6 +187,30 @@ app.post('/run/:task/:host', validateToken, async (req, res) => {
     const sanitizedHost = hostValidation.hostname;
     const task = taskValidation.task;
 
+    // Tasks that embed a "{{message}}" placeholder need free-text input
+    // from the caller - validate/sanitize it here before it ever reaches
+    // PsExec's argument list.
+    let params = null;
+    if (taskName === 'show-message') {
+      const userMessage = req.body && req.body.message;
+      if (typeof userMessage !== 'string' || userMessage.trim() === '') {
+        return res.status(400).json({
+          success: false,
+          error: 'A non-empty "message" field is required for show-message'
+        });
+      }
+      if (userMessage.length > 500) {
+        return res.status(400).json({
+          success: false,
+          error: 'message must be 500 characters or fewer'
+        });
+      }
+      // Strip embedded double quotes - PsExec wraps args containing spaces
+      // in quotes when reconstructing the remote command line, so a literal
+      // " in the message could break that argument boundary.
+      params = { message: userMessage.trim().replace(/"/g, "'") };
+    }
+
     // Generate unique task ID
     const taskId = `task-${taskName}-${sanitizedHost}-${Date.now()}`;
 
@@ -213,7 +238,7 @@ app.post('/run/:task/:host', validateToken, async (req, res) => {
     executeRemoteTask(taskName, sanitizedHost, {
       username: process.env.USERNAME || 'UNKNOWN',
       ip: clientIp
-    }, taskId).catch(error => {
+    }, taskId, params).catch(error => {
       // Error is already logged in psexec.js
       logger.error('Background task failed', {
         taskName,
@@ -230,6 +255,140 @@ app.post('/run/:task/:host', validateToken, async (req, res) => {
     });
     res.status(500).json({
       success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * Capture a screenshot of the target device's screen (requires auth)
+ * POST /screenshot/:host
+ *
+ * Returns the image as a base64 data URI - it is never written to disk on
+ * this host, and the copy on the target is deleted immediately after
+ * transfer. Synchronous (awaits the full capture) since the response body
+ * IS the result, unlike the fire-and-forget /run endpoint.
+ */
+app.post('/screenshot/:host', validateToken, async (req, res) => {
+  const clientIp = req.ip || req.connection.remoteAddress;
+  const { host: hostname } = req.params;
+
+  const hostValidation = validateHost(hostname);
+  if (!hostValidation.valid) {
+    logSecurity('Invalid host attempt', clientIp, {
+      hostname,
+      error: hostValidation.error
+    });
+    return res.status(400).json({
+      success: false,
+      error: hostValidation.error
+    });
+  }
+
+  const sanitizedHost = hostValidation.hostname;
+
+  try {
+    const imageBuffer = await captureScreenshot(sanitizedHost);
+    res.json({
+      success: true,
+      image: `data:image/png;base64,${imageBuffer.toString('base64')}`
+    });
+  } catch (error) {
+    logger.error('Screenshot capture failed', {
+      hostname: sanitizedHost,
+      error: error.message
+    });
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * List user profiles on the target device (requires auth)
+ * GET /profiles/:host
+ */
+app.get('/profiles/:host', validateToken, async (req, res) => {
+  const clientIp = req.ip || req.connection.remoteAddress;
+  const { host: hostname } = req.params;
+
+  const hostValidation = validateHost(hostname);
+  if (!hostValidation.valid) {
+    logSecurity('Invalid host attempt', clientIp, {
+      hostname,
+      error: hostValidation.error
+    });
+    return res.status(400).json({
+      success: false,
+      error: hostValidation.error
+    });
+  }
+
+  const sanitizedHost = hostValidation.hostname;
+
+  try {
+    const profiles = await listProfiles(sanitizedHost);
+    res.json({ success: true, profiles });
+  } catch (error) {
+    logger.error('Profile listing failed', {
+      hostname: sanitizedHost,
+      error: error.message
+    });
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * Delete a single user profile on the target device (requires auth)
+ * POST /profiles/:host/delete
+ * Body: { sid }
+ *
+ * The frontend calls this once per selected profile so it can drive its own
+ * progress bar across a bulk delete, rather than this endpoint handling a
+ * batch itself.
+ */
+app.post('/profiles/:host/delete', validateToken, async (req, res) => {
+  const clientIp = req.ip || req.connection.remoteAddress;
+  const { host: hostname } = req.params;
+  const { sid } = req.body || {};
+
+  const hostValidation = validateHost(hostname);
+  if (!hostValidation.valid) {
+    logSecurity('Invalid host attempt', clientIp, {
+      hostname,
+      error: hostValidation.error
+    });
+    return res.status(400).json({
+      success: false,
+      error: hostValidation.error
+    });
+  }
+
+  if (!sid || typeof sid !== 'string') {
+    return res.status(400).json({
+      success: false,
+      error: 'A "sid" field is required'
+    });
+  }
+
+  const sanitizedHost = hostValidation.hostname;
+
+  try {
+    await deleteProfile(sanitizedHost, sid);
+    res.json({ success: true, sid });
+  } catch (error) {
+    logger.error('Profile deletion failed', {
+      hostname: sanitizedHost,
+      sid,
+      error: error.message
+    });
+    res.status(500).json({
+      success: false,
+      sid,
       error: error.message
     });
   }

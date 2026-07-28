@@ -45,6 +45,16 @@ function findPsExec() {
   return "C:\\SysinternalsSuite\\PsExec.exe";
 }
 
+/**
+ * Find TightVNC Viewer - env var override, else the org's standard path
+ */
+function findVncViewer() {
+  if (process.env.VNC_VIEWER_PATH && fs.existsSync(process.env.VNC_VIEWER_PATH)) {
+    return process.env.VNC_VIEWER_PATH;
+  }
+  return "C:\\Program Files\\TightVNC\\tvnviewer.exe";
+}
+
 module.exports = {
   // Server configuration
   server: {
@@ -100,6 +110,13 @@ module.exports = {
       runAs: "admin", // requires admin rights
       useSystemAccount: true, // Run as SYSTEM to avoid session/credential issues
       timeout: 900000, // 15 minutes - comprehensive reports can take time
+      // The script resolves its output path relative to its own working
+      // directory (%CD%). PsExec's -c (copy-and-execute) always places and
+      // runs the copied script under %SystemRoot% on the target regardless
+      // of -w, so this is where the resulting report actually lands -
+      // confirmed empirically, not something -w can override. Used by
+      // fetchRemoteReport (psexec.js) to find and pull the report back.
+      remoteWorkDir: "C:\\Windows",
     },
     gpupdate: {
       description: "Force Group Policy update",
@@ -111,9 +128,24 @@ module.exports = {
     "test-connection": {
       description: "Test network connectivity",
       script: "cmd.exe",
-      args: ["/c", "ping", "-n", "4", "127.0.0.1"],
+      args: ["/c", "ping", "-n", "4", "{{target}}"],
       runAs: "user",
       interactive: true,
+      // Run from the WISP host itself (like typing "ping WS01" in cmd),
+      // rather than PsExec-ing into the target and pinging its own loopback.
+      execution: "local",
+    },
+    "launch-vnc": {
+      description: "Launch TightVNC Viewer connected to the target device",
+      script: findVncViewer(),
+      args: ["{{target}}"],
+      // Runs on the WISP host, launching a GUI app pointed at the target -
+      // not something PsExec should run remotely.
+      execution: "local",
+      // Just launch it and move on - the viewer window stays open for as
+      // long as the user wants, so this shouldn't wait for it to close (the
+      // way a normal local task waits) or get killed by the task timeout.
+      fireAndForget: true,
     },
     "ipconfig-renew": {
       description: "Renew DHCP lease",
@@ -147,6 +179,21 @@ module.exports = {
       description: "System File Checker scan",
       script: "cmd.exe",
       args: ["/c", "sfc", "/scannow"],
+      runAs: "admin",
+      interactive: true,
+    },
+    "show-message": {
+      description: "Display a message on the target device",
+      // Invoke msg.exe directly rather than through "cmd.exe /c" - cmd.exe
+      // parses command lines line-by-line and treats an embedded newline as
+      // a hard statement break even inside a quoted argument, which was
+      // truncating multi-line messages down to just their first line.
+      // msg.exe targets sessions via the Terminal Services API directly, so
+      // it reaches the logged-in user's session regardless of which session
+      // this command itself runs in - and its dialog stays up until the
+      // user clicks OK, satisfying "which can be closed".
+      script: "msg.exe",
+      args: ["*", "{{message}}"],
       runAs: "admin",
       interactive: true,
     },

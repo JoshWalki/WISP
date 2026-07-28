@@ -45,6 +45,20 @@ echo [SUCCESS] Running with administrative privileges
 echo.
 
 REM ============================================================================
+REM NETWORK SECURITY: Clear any lockdown from a previous run of this script
+REM ============================================================================
+REM This setup script locks WISP down to LAN-only access at the very end
+REM (see bottom of file). If it's being re-run - e.g. to install a newly
+REM added dependency - that lockdown would otherwise block npm's access to
+REM the registry. Removing it here (safe even if it doesn't exist yet) and
+REM re-creating it at the end keeps this script safely re-runnable.
+
+echo.
+echo Ensuring outbound internet access is available for setup...
+powershell -NoProfile -Command "Get-NetFirewallRule -DisplayName 'WISP - Block Internet*' -ErrorAction SilentlyContinue | Remove-NetFirewallRule" >nul 2>&1
+echo.
+
+REM ============================================================================
 REM STEP 2: Check Node.js Installation
 REM ============================================================================
 
@@ -356,6 +370,81 @@ if exist "%SCRIPT_DIR%.env" (
     echo [WARNING] .env file not found
 )
 
+echo.
+
+REM ============================================================================
+REM NETWORK SECURITY: Block outbound internet access, keep LAN access working
+REM ============================================================================
+REM Blocks Node.js, PsExec, and TightVNC Viewer from reaching the internet
+REM directly, while leaving LAN traffic (talking to devices you manage)
+REM completely unaffected. This works by scoping the block rule itself to
+REM "-RemoteAddress Internet" (externally-routable addresses only) rather
+REM than combining a broad block-all rule with a LAN-allow rule - a block
+REM rule with remoteip=any would also match and block LAN traffic, since
+REM Windows Firewall always lets a matching Block rule override a matching
+REM Allow rule regardless of how specific the Allow rule is.
+REM
+REM NOTE: this does not restrict the Windows SMB client itself (used for
+REM reading/writing \\host\C$\... admin shares) - that traffic is owned by
+REM the OS's Workstation service, not by node.exe, so a program-scoped rule
+REM for node.exe does not see it. It is restricted to the LAN anyway by
+REM WISP's own host allow-list (config.js), but if you want that traffic
+REM firewall-blocked from the internet too, that would need a broader
+REM system-wide SMB (port 445) rule instead - ask if you want that added.
+
+echo.
+echo ============================================================================
+echo Locking down network access...
+echo ============================================================================
+echo.
+echo WISP and its tools (PsExec, TightVNC Viewer) will be blocked from
+echo reaching the internet directly, while remaining free to reach devices
+echo on your local network.
+echo.
+
+set "NODE_EXE_PATH="
+for /f "delims=" %%N in ('where node 2^>nul') do (
+    if not defined NODE_EXE_PATH set "NODE_EXE_PATH=%%N"
+)
+
+if defined NODE_EXE_PATH (
+    powershell -NoProfile -Command "try { New-NetFirewallRule -DisplayName 'WISP - Block Internet - Node' -Direction Outbound -Program '!NODE_EXE_PATH!' -RemoteAddress Internet -Action Block -Enabled True -ErrorAction Stop | Out-Null; exit 0 } catch { Write-Error $_.Exception.Message; exit 1 }" >nul 2>&1
+    if !errorlevel! equ 0 (
+        echo [SUCCESS] Blocked internet access for Node.js ^(!NODE_EXE_PATH!^)
+    ) else (
+        echo [WARNING] Failed to create firewall rule for Node.js - please check manually
+    )
+) else (
+    echo [WARNING] Could not find node.exe - internet block not applied for Node.js
+)
+
+if "!PSEXEC_FOUND!"=="1" (
+    powershell -NoProfile -Command "try { New-NetFirewallRule -DisplayName 'WISP - Block Internet - PsExec' -Direction Outbound -Program '!PSEXEC_PATH!' -RemoteAddress Internet -Action Block -Enabled True -ErrorAction Stop | Out-Null; exit 0 } catch { Write-Error $_.Exception.Message; exit 1 }" >nul 2>&1
+    if !errorlevel! equ 0 (
+        echo [SUCCESS] Blocked internet access for PsExec ^(!PSEXEC_PATH!^)
+    ) else (
+        echo [WARNING] Failed to create firewall rule for PsExec - please check manually
+    )
+)
+
+set "VNC_VIEWER_DEFAULT=C:\Program Files\TightVNC\tvnviewer.exe"
+if exist "!VNC_VIEWER_DEFAULT!" (
+    powershell -NoProfile -Command "try { New-NetFirewallRule -DisplayName 'WISP - Block Internet - TightVNC' -Direction Outbound -Program '!VNC_VIEWER_DEFAULT!' -RemoteAddress Internet -Action Block -Enabled True -ErrorAction Stop | Out-Null; exit 0 } catch { Write-Error $_.Exception.Message; exit 1 }" >nul 2>&1
+    if !errorlevel! equ 0 (
+        echo [SUCCESS] Blocked internet access for TightVNC Viewer
+    ) else (
+        echo [WARNING] Failed to create firewall rule for TightVNC Viewer - please check manually
+    )
+) else (
+    echo [INFO] TightVNC Viewer not found at !VNC_VIEWER_DEFAULT! - skipping
+    echo        ^(re-run setup.bat after installing it to add this rule^)
+)
+
+echo.
+echo IMPORTANT - please verify this worked before relying on it:
+echo   1. Run a WISP task against a LAN device and confirm it still works.
+echo   2. Run: netsh advfirewall firewall show rule name=all
+echo      and confirm entries starting with "WISP - Block Internet" exist.
 echo.
 
 REM ============================================================================

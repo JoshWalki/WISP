@@ -474,6 +474,9 @@
         animation: slideUp 0.3s ease-out;
         position: relative;
       }
+      .modal-dialog-wide {
+        max-width: 960px;
+      }
       .modal-header {
         display: flex;
         align-items: center;
@@ -901,6 +904,42 @@
                 </div>
               </div>
             </button>
+
+            <button class="action-btn" onclick="showSendMessageModal()">
+              <div style="margin: 10px">
+                <div style="font-weight: 600">Send Message</div>
+                <div style="font-size: 11px; opacity: 0.8">
+                  Show a message on the target device
+                </div>
+              </div>
+            </button>
+
+            <button class="action-btn" onclick="captureScreenshot()">
+              <div style="margin: 10px">
+                <div style="font-weight: 600">Screen Capture</div>
+                <div style="font-size: 11px; opacity: 0.8">
+                  View the target device's screen
+                </div>
+              </div>
+            </button>
+
+            <button class="action-btn" onclick="runRemoteTask('launch-vnc')">
+              <div style="margin: 10px">
+                <div style="font-weight: 600">Launch VNC</div>
+                <div style="font-size: 11px; opacity: 0.8">
+                  Open TightVNC Viewer to the target device
+                </div>
+              </div>
+            </button>
+
+            <button class="action-btn" onclick="loadProfiles()">
+              <div style="margin: 10px">
+                <div style="font-weight: 600">Load Profiles</div>
+                <div style="font-size: 11px; opacity: 0.8">
+                  List user profiles on the target device
+                </div>
+              </div>
+            </button>
           </div>
 
           <div
@@ -912,6 +951,86 @@
               display: none;
             "
           ></div>
+        </div>
+      </div>
+
+      <div class="file-selector">
+        <h3>Profile Deleter</h3>
+        <p style="margin: 0 0 15px 0; font-size: 14px; color: #7f8c8d">
+          List and remove user profiles on the target device. Public,
+          Default, and any profile currently logged in are excluded. Click
+          "Load Profiles" above to populate this list.
+        </p>
+
+        <div id="profileListContainer" style="display: none; margin-top: 15px">
+          <div
+            style="
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-bottom: 10px;
+            "
+          >
+            <label
+              style="display: flex; align-items: center; gap: 8px; font-size: 14px"
+            >
+              <input
+                type="checkbox"
+                id="profileSelectAll"
+                onchange="toggleSelectAllProfiles(this.checked)"
+              />
+              Select All
+            </label>
+            <button
+              class="modal-btn modal-btn-confirm"
+              id="deleteSelectedProfilesBtn"
+              onclick="deleteSelectedProfiles()"
+              disabled
+              style="opacity: 1"
+            >
+              Delete Selected
+            </button>
+          </div>
+
+          <div style="overflow-x: auto">
+            <table>
+              <thead>
+                <tr>
+                  <th></th>
+                  <th>Username</th>
+                  <th>Size</th>
+                  <th>Last Logged In</th>
+                  <th>Type</th>
+                </tr>
+              </thead>
+              <tbody id="profileTableBody"></tbody>
+            </table>
+          </div>
+
+          <div id="profileDeleteProgress" style="display: none; margin-top: 15px">
+            <div
+              style="
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 8px;
+                overflow: hidden;
+                height: 20px;
+              "
+            >
+              <div
+                id="profileDeleteProgressBar"
+                style="
+                  height: 100%;
+                  width: 0%;
+                  background: var(--secondary-color);
+                  transition: width 0.2s;
+                "
+              ></div>
+            </div>
+            <p
+              id="profileDeleteProgressText"
+              style="font-size: 13px; margin-top: 8px; text-align: center"
+            ></p>
+          </div>
         </div>
       </div>
 
@@ -1212,11 +1331,11 @@
             createSection("Power Information", [
               createSubSection(
                 "Battery Report",
-                formatPowerReport(data.power.batteryReport)
+                formatPowerReport(data.power.reports?.batteryReport)
               ),
               createSubSection(
-                "Energy Report",
-                formatPowerReport(data.power.energyReport)
+                "Battery Health",
+                formatBatteryHealth(data.power.reports?.energyReport)
               ),
             ])
           );
@@ -1588,7 +1707,7 @@
 
         return (
           "<ul>" +
-          profiles.map((profile) => `<li>${profile}</li>`).join("") +
+          profiles.map((profile) => `<li>${profile.name}</li>`).join("") +
           "</ul>"
         );
       }
@@ -1968,7 +2087,17 @@
         filteredAppsData = apps;
         currentAppsPage = 1;
 
-        let html = `
+        // Build the table/pagination HTML synchronously and embed it
+        // directly, rather than leaving these divs empty and deferring the
+        // render via setTimeout - that raced against whenever the caller
+        // actually attaches this returned string to the DOM, and lost often
+        // enough that the table stayed blank until a later user interaction
+        // (e.g. the search box) happened to trigger a render after the DOM
+        // element genuinely existed.
+        const { html: tableHtml, totalPages } = buildAppsTableHtml();
+        const paginationHtml = buildAppsPaginationHtml(totalPages);
+
+        return `
                 <div class="apps-search-container" style="margin-bottom: 15px;">
                     <input type="text"
                            class="search-box"
@@ -1978,16 +2107,9 @@
                            onkeyup="searchInstalledApps(this.value)">
                     <div id="appsSearchInfo" style="font-size: 12px; color: #cdcdcd;"></div>
                 </div>
-                <div id="installedAppsTable"></div>
-                <div id="appsPagination" style="margin-top: 15px; text-align: center;"></div>
+                <div id="installedAppsTable">${tableHtml}</div>
+                <div id="appsPagination" style="margin-top: 15px; text-align: center;">${paginationHtml}</div>
             `;
-
-        // Use setTimeout to render after HTML is inserted
-        setTimeout(() => {
-          renderInstalledAppsTable();
-        }, 0);
-
-        return html;
       }
 
       function searchInstalledApps(searchTerm) {
@@ -2015,10 +2137,11 @@
         }
       }
 
-      function renderInstalledAppsTable() {
-        const tableContainer = document.getElementById("installedAppsTable");
-        if (!tableContainer) return;
-
+      // Pure builders - compute HTML from current state without touching the
+      // DOM, so they can be used both for the initial synchronous render
+      // (before these elements exist yet) and for later re-renders once the
+      // DOM elements are already there.
+      function buildAppsTableHtml() {
         const totalPages = Math.ceil(filteredAppsData.length / appsPerPage);
         const startIdx = (currentAppsPage - 1) * appsPerPage;
         const endIdx = Math.min(
@@ -2044,16 +2167,11 @@
           filteredAppsData.length
         } applications</em></p>`;
 
-        tableContainer.innerHTML = html;
-        renderAppsPagination(totalPages);
+        return { html, totalPages };
       }
 
-      function renderAppsPagination(totalPages) {
-        const paginationContainer = document.getElementById("appsPagination");
-        if (!paginationContainer || totalPages <= 1) {
-          if (paginationContainer) paginationContainer.innerHTML = "";
-          return;
-        }
+      function buildAppsPaginationHtml(totalPages) {
+        if (totalPages <= 1) return "";
 
         let html =
           '<div style="display: flex; gap: 5px; justify-content: center; flex-wrap: wrap;">';
@@ -2104,7 +2222,23 @@
         }
 
         html += "</div>";
-        paginationContainer.innerHTML = html;
+        return html;
+      }
+
+      // DOM-updating wrappers - used by search/pagination interactions,
+      // where the target elements are guaranteed to already exist since the
+      // user is clicking/typing on them.
+      function renderInstalledAppsTable() {
+        const tableContainer = document.getElementById("installedAppsTable");
+        if (!tableContainer) return;
+
+        const { html, totalPages } = buildAppsTableHtml();
+        tableContainer.innerHTML = html;
+
+        const paginationContainer = document.getElementById("appsPagination");
+        if (paginationContainer) {
+          paginationContainer.innerHTML = buildAppsPaginationHtml(totalPages);
+        }
       }
 
       function changeAppsPage(page) {
@@ -2340,6 +2474,42 @@
         }</td></tr>
                     <tr><td>Details</td><td>${
                       report.reason || report.file || "N/A"
+                    }</td></tr>
+                </table>
+            `;
+      }
+
+      function formatBatteryHealth(health) {
+        if (!health || health.error)
+          return `<p class="error">${health?.error || "No data available"}</p>`;
+        if (health.status === "not_available")
+          return "<p>No battery detected, or the battery report could not be generated.</p>";
+
+        const mwh = (value) =>
+          value != null ? `${value.toLocaleString()} mWh` : "N/A";
+        const degradation =
+          health.capacityDegradationPercent != null
+            ? `${health.capacityDegradationPercent}%`
+            : "N/A";
+
+        return `
+                <table>
+                    <tr><th>Property</th><th>Value</th></tr>
+                    <tr><td>Design Capacity</td><td>${mwh(
+                      health.designCapacityMWh
+                    )}</td></tr>
+                    <tr><td>Full Charge Capacity</td><td>${mwh(
+                      health.fullChargeCapacityMWh
+                    )}</td></tr>
+                    <tr><td>Capacity Degradation</td><td>${degradation}</td></tr>
+                    <tr><td>Cycle Count</td><td>${
+                      health.cycleCount ?? "N/A"
+                    }</td></tr>
+                    <tr><td>Estimated Active Life (current capacity)</td><td>${
+                      health.estimatedActiveLifeAtCurrentCapacity || "N/A"
+                    }</td></tr>
+                    <tr><td>Estimated Active Life (design capacity)</td><td>${
+                      health.estimatedActiveLifeAtDesignCapacity || "N/A"
                     }</td></tr>
                 </table>
             `;
@@ -3227,18 +3397,402 @@
       }
 
       /**
+       * Show send-message modal
+       */
+      function showSendMessageModal() {
+        const targetHost = document
+          .getElementById("targetHostInput")
+          .value.trim();
+
+        if (!targetHost) {
+          showToast(
+            "Warning",
+            "Please enter a target hostname or IP address",
+            "warning",
+            4000
+          );
+          return;
+        }
+
+        document.getElementById("sendMessageTargetHost").textContent =
+          targetHost;
+        document.getElementById("sendMessageText").value = "";
+
+        const modal = document.getElementById("sendMessageModal");
+        modal.classList.add("active");
+        document.getElementById("sendMessageText").focus();
+      }
+
+      /**
+       * Hide send-message modal
+       */
+      function hideSendMessageModal() {
+        const modal = document.getElementById("sendMessageModal");
+        modal.classList.remove("active");
+      }
+
+      /**
+       * Confirm and execute show-message task with the typed text
+       */
+      function confirmSendMessage() {
+        const messageText = document
+          .getElementById("sendMessageText")
+          .value.trim();
+
+        if (!messageText) {
+          showToast("Warning", "Please enter a message to send", "warning", 4000);
+          return;
+        }
+
+        hideSendMessageModal();
+        runRemoteTask("show-message", { message: messageText });
+      }
+
+      /**
+       * Capture a screenshot of the target device's screen and show it in a
+       * modal. The image is held only in this variable and the <img> tag's
+       * src for as long as the modal is open - never persisted anywhere -
+       * and both get cleared as soon as the modal closes.
+       */
+      async function captureScreenshot() {
+        const targetHost = document
+          .getElementById("targetHostInput")
+          .value.trim();
+
+        if (!targetHost) {
+          showToast(
+            "Warning",
+            "Please enter a target hostname or IP address",
+            "warning",
+            4000
+          );
+          return;
+        }
+
+        if (!WISP_CONFIG.token) {
+          showToast(
+            "Error",
+            "WISP Companion is disconnected: Unhealthy response. Is start-service.bat running and the token set?",
+            "error",
+            5000
+          );
+          return;
+        }
+
+        showToast(
+          "Capturing Screenshot",
+          `Capturing screen from ${targetHost}... this can take up to a minute.`,
+          "info",
+          8000
+        );
+
+        try {
+          const response = await fetch(
+            `${WISP_CONFIG.apiUrl}/screenshot/${targetHost}`,
+            {
+              method: "POST",
+              headers: {
+                "X-WISP-Token": WISP_CONFIG.token,
+                "Content-Type": "application/json",
+              },
+            }
+          );
+
+          const result = await response.json();
+
+          if (!response.ok || !result.success) {
+            showToast(
+              "Screenshot Failed",
+              result.error || `HTTP ${response.status}: ${response.statusText}`,
+              "error",
+              6000
+            );
+            return;
+          }
+
+          showScreenshotModal(result.image, targetHost);
+        } catch (error) {
+          console.error("[captureScreenshot] Error:", error);
+          showToast("Screenshot Failed", error.message, "error", 6000);
+        }
+      }
+
+      function showScreenshotModal(dataUri, targetHost) {
+        document.getElementById("screenshotTargetHost").textContent =
+          targetHost;
+        document.getElementById("screenshotImage").src = dataUri;
+
+        const modal = document.getElementById("screenshotModal");
+        modal.classList.add("active");
+      }
+
+      function hideScreenshotModal() {
+        const modal = document.getElementById("screenshotModal");
+        modal.classList.remove("active");
+
+        // Don't hold onto the captured image any longer than the modal is
+        // actually open.
+        const img = document.getElementById("screenshotImage");
+        if (img) img.src = "";
+      }
+
+      // Profile Deleter state
+      let profilesData = [];
+      let profilesHost = "";
+
+      function formatProfileBytes(bytes) {
+        if (!bytes || bytes <= 0) return "0 B";
+        const units = ["B", "KB", "MB", "GB", "TB"];
+        let value = bytes;
+        let i = 0;
+        while (value >= 1024 && i < units.length - 1) {
+          value /= 1024;
+          i++;
+        }
+        return `${value.toFixed(1)} ${units[i]}`;
+      }
+
+      function formatProfileDate(iso) {
+        if (!iso) return "Unknown";
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return "Unknown";
+        return d.toLocaleString();
+      }
+
+      async function loadProfiles() {
+        const targetHost = document
+          .getElementById("targetHostInput")
+          .value.trim();
+
+        if (!targetHost) {
+          showToast(
+            "Warning",
+            "Please enter a target hostname or IP address",
+            "warning",
+            4000
+          );
+          return;
+        }
+
+        if (!WISP_CONFIG.token) {
+          showToast(
+            "Error",
+            "WISP Companion is disconnected: Unhealthy response. Is start-service.bat running and the token set?",
+            "error",
+            5000
+          );
+          return;
+        }
+
+        profilesHost = targetHost;
+        const statusTaskId = "profile-load-status";
+        showRemoteActionStatus(
+          "loading",
+          `Loading profiles from ${targetHost}... this can take a moment.`,
+          "",
+          statusTaskId
+        );
+
+        try {
+          const response = await fetch(
+            `${WISP_CONFIG.apiUrl}/profiles/${targetHost}`,
+            {
+              method: "GET",
+              headers: { "X-WISP-Token": WISP_CONFIG.token },
+            }
+          );
+
+          const result = await response.json();
+
+          if (!response.ok || !result.success) {
+            showRemoteActionStatus(
+              "error",
+              result.error || `HTTP ${response.status}: ${response.statusText}`,
+              "",
+              statusTaskId
+            );
+            return;
+          }
+
+          // Defense in depth - the server-side script already excludes
+          // Windows' own "Special" profiles, but filter Public/Default by
+          // folder name here too in case anything slips through.
+          profilesData = result.profiles.filter((p) => {
+            const name = (p.folderName || "").toLowerCase();
+            return name !== "public" && name !== "default" && name !== "default user";
+          });
+
+          // Oldest first, as requested - profiles with no recorded
+          // last-use time sort to the end rather than the front.
+          profilesData.sort((a, b) => {
+            const aTime = a.lastUseTime
+              ? new Date(a.lastUseTime).getTime()
+              : Infinity;
+            const bTime = b.lastUseTime
+              ? new Date(b.lastUseTime).getTime()
+              : Infinity;
+            return aTime - bTime;
+          });
+
+          renderProfileTable();
+          document.getElementById("profileListContainer").style.display =
+            "block";
+          removeTaskItem(statusTaskId);
+        } catch (error) {
+          console.error("[loadProfiles] Error:", error);
+          showRemoteActionStatus("error", error.message, "", statusTaskId);
+        }
+      }
+
+      function renderProfileTable() {
+        const tbody = document.getElementById("profileTableBody");
+        tbody.innerHTML = "";
+
+        profilesData.forEach((p, index) => {
+          const tr = document.createElement("tr");
+          const label = p.username || p.folderName || "Unknown";
+          tr.innerHTML = `
+            <td><input type="checkbox" class="profile-checkbox" data-index="${index}" onchange="updateDeleteButtonState()" ${
+            p.loaded ? "disabled" : ""
+          }></td>
+            <td>${label}${p.loaded ? " (logged in)" : ""}</td>
+            <td>${formatProfileBytes(p.sizeBytes)}</td>
+            <td>${formatProfileDate(p.lastUseTime)}</td>
+            <td>${p.roaming ? "Roaming" : "Local"}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        document.getElementById("profileSelectAll").checked = false;
+        updateDeleteButtonState();
+      }
+
+      function toggleSelectAllProfiles(checked) {
+        document
+          .querySelectorAll(".profile-checkbox:not(:disabled)")
+          .forEach((cb) => {
+            cb.checked = checked;
+          });
+        updateDeleteButtonState();
+      }
+
+      function updateDeleteButtonState() {
+        const anyChecked = Array.from(
+          document.querySelectorAll(".profile-checkbox")
+        ).some((cb) => cb.checked);
+        document.getElementById("deleteSelectedProfilesBtn").disabled =
+          !anyChecked;
+      }
+
+      async function deleteSelectedProfiles() {
+        const checkboxes = Array.from(
+          document.querySelectorAll(".profile-checkbox:checked")
+        );
+        if (checkboxes.length === 0) return;
+
+        const selected = checkboxes.map(
+          (cb) => profilesData[parseInt(cb.dataset.index, 10)]
+        );
+
+        const confirmed = confirm(
+          `Delete ${selected.length} profile(s) from ${profilesHost}? This cannot be undone.`
+        );
+        if (!confirmed) return;
+
+        const progressContainer = document.getElementById(
+          "profileDeleteProgress"
+        );
+        const progressBar = document.getElementById(
+          "profileDeleteProgressBar"
+        );
+        const progressText = document.getElementById(
+          "profileDeleteProgressText"
+        );
+        progressContainer.style.display = "block";
+        document.getElementById("deleteSelectedProfilesBtn").disabled = true;
+
+        const failures = [];
+
+        for (let i = 0; i < selected.length; i++) {
+          const p = selected[i];
+          const label = p.username || p.folderName || p.sid;
+          progressText.textContent = `Deleting ${i + 1} of ${
+            selected.length
+          }: ${label}...`;
+          progressBar.style.width = `${Math.round(
+            (i / selected.length) * 100
+          )}%`;
+
+          try {
+            const response = await fetch(
+              `${WISP_CONFIG.apiUrl}/profiles/${profilesHost}/delete`,
+              {
+                method: "POST",
+                headers: {
+                  "X-WISP-Token": WISP_CONFIG.token,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ sid: p.sid }),
+              }
+            );
+            const result = await response.json();
+            if (!response.ok || !result.success) {
+              failures.push({
+                label,
+                error: result.error || `HTTP ${response.status}`,
+              });
+            }
+          } catch (error) {
+            failures.push({ label, error: error.message });
+          }
+        }
+
+        progressBar.style.width = "100%";
+        const succeeded = selected.length - failures.length;
+
+        if (failures.length > 0) {
+          progressText.innerHTML =
+            `Done: ${succeeded} of ${selected.length} deleted. ${failures.length} failed:<br>` +
+            failures.map((f) => `- ${f.label}: ${f.error}`).join("<br>");
+          showToast(
+            "Some Profiles Failed to Delete",
+            `${failures.length} of ${selected.length} failed - see details below the table.`,
+            "error",
+            8000
+          );
+        } else {
+          progressText.textContent = `Done: all ${selected.length} profile(s) deleted successfully.`;
+          showToast(
+            "Profiles Deleted",
+            `${selected.length} profile(s) deleted successfully.`,
+            "success",
+            5000
+          );
+        }
+
+        // Refresh so the list reflects what's actually left on the target.
+        await loadProfiles();
+      }
+
+      /**
        * Handle clicks on modal overlay (close when clicking outside dialog)
        */
       function handleModalClick(event) {
         if (event.target.id === "restartModal") {
           hideRestartModal();
         }
+        if (event.target.id === "sendMessageModal") {
+          hideSendMessageModal();
+        }
+        if (event.target.id === "screenshotModal") {
+          hideScreenshotModal();
+        }
       }
 
       /**
        * Execute a remote task on target host
        */
-      async function runRemoteTask(taskName) {
+      async function runRemoteTask(taskName, params = null) {
         const targetHost = document
           .getElementById("targetHostInput")
           .value.trim();
@@ -3298,6 +3852,7 @@
                 "X-WISP-Token": WISP_CONFIG.token,
                 "Content-Type": "application/json",
               },
+              body: JSON.stringify(params || {}),
             }
           );
 
@@ -3337,6 +3892,7 @@
 
             // Define the polling function
             let pollInterval = null;
+            const pollStartTime = Date.now();
             const pollTaskStatus = async () => {
               try {
                 const statusResponse = await fetch(
@@ -3372,9 +3928,12 @@
 
                   // Update UI with live output
                   if (task.status === "running") {
+                    const elapsedSec = Math.round(
+                      (Date.now() - pollStartTime) / 1000
+                    );
                     showRemoteActionStatus(
                       "loading",
-                      `Running ${taskName} on ${targetHost}...`,
+                      `Running ${taskName} on ${targetHost}... (${elapsedSec}s elapsed)`,
                       output,
                       taskId
                     );
@@ -3977,6 +4536,87 @@
             onclick="confirmRestart()"
           >
             Restart Computer
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Send Message Modal -->
+    <div
+      id="sendMessageModal"
+      class="modal-overlay"
+      onclick="handleModalClick(event)"
+    >
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <div class="modal-title">Send Message to Device</div>
+        </div>
+        <div class="modal-body">
+          <p>
+            This message will be displayed on:
+            <strong id="sendMessageTargetHost"></strong>
+          </p>
+          <textarea
+            id="sendMessageText"
+            maxlength="500"
+            rows="4"
+            placeholder="Type the message to display on the target device..."
+            style="
+              width: 100%;
+              box-sizing: border-box;
+              font-family: inherit;
+              font-size: 14px;
+              padding: 8px;
+              resize: vertical;
+            "
+          ></textarea>
+          <p style="font-size: 13px; opacity: 0.8; margin-top: 10px">
+            The user on the target device can close the message themselves.
+          </p>
+        </div>
+        <div class="modal-footer">
+          <button
+            class="modal-btn modal-btn-cancel"
+            onclick="hideSendMessageModal()"
+          >
+            Cancel
+          </button>
+          <button
+            class="modal-btn modal-btn-confirm"
+            onclick="confirmSendMessage()"
+          >
+            Send Message
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screenshot Modal -->
+    <div
+      id="screenshotModal"
+      class="modal-overlay"
+      onclick="handleModalClick(event)"
+    >
+      <div class="modal-dialog modal-dialog-wide">
+        <div class="modal-header">
+          <div class="modal-title">
+            Screen Capture - <span id="screenshotTargetHost"></span>
+          </div>
+        </div>
+        <div class="modal-body">
+          <img
+            id="screenshotImage"
+            src=""
+            alt="Screenshot of target device"
+            style="width: 100%; height: auto; border-radius: 6px"
+          />
+        </div>
+        <div class="modal-footer">
+          <button
+            class="modal-btn modal-btn-cancel"
+            onclick="hideScreenshotModal()"
+          >
+            Close
           </button>
         </div>
       </div>

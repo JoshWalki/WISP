@@ -199,14 +199,14 @@ systeminfo > "%TEMP_DIR%\systeminfo.txt" 2>&1
 reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion" > "%TEMP_DIR%\winbuild.txt" 2>&1
 
 echo [*] Step 2/10: Collecting storage information...
-wmic logicaldisk get Size,FreeSpace,Caption,DriveType,FileSystem,VolumeName /format:csv > "%TEMP_DIR%\disks.csv" 2>&1
+powershell -NoProfile -Command "Get-CimInstance Win32_LogicalDisk | Select-Object DeviceID,Size,FreeSpace,DriveType,FileSystem,VolumeName | Export-Csv -NoTypeInformation -Path '%TEMP_DIR%\disks.csv'" > nul 2>&1
 mountvol > "%TEMP_DIR%\mountvol.txt" 2>&1
 
 echo [*] Step 3/10: Collecting hardware information...
 driverquery /v /fo csv > "%TEMP_DIR%\drivers.csv" 2>&1
 
 echo [*] Step 4/10: Collecting software information...
-wmic qfe get HotFixID,Description,InstalledBy,InstalledOn /format:csv > "%TEMP_DIR%\hotfixes.csv" 2>&1
+powershell -NoProfile -Command "Get-HotFix | Select-Object HotFixID,Description,InstalledBy,InstalledOn | Export-Csv -NoTypeInformation -Path '%TEMP_DIR%\hotfixes.csv'" > nul 2>&1
 reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" > "%TEMP_DIR%\startup_hklm.txt" 2>&1
 reg query "HKCU\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" > "%TEMP_DIR%\startup_hkcu.txt" 2>&1
 
@@ -232,8 +232,7 @@ nslookup google.com > "%TEMP_DIR%\dns_test.txt" 2>&1
 
 echo [*] Step 9/10: Collecting power information...
 powercfg /batteryreport /output "%TEMP_DIR%\battery_report.html" >nul 2>&1
-echo Energy report skipped ^(takes 60 seconds to run^) > "%TEMP_DIR%\energy_report.html" 2>&1
-echo     Battery report generated, energy report skipped for performance
+echo     Battery report generated - capacity, cycle count, and life estimates parsed from it
 
 echo [*] Step 10/10: Collecting Group Policy and events...
 gpresult /r /v > "%TEMP_DIR%\gpresult.txt" 2>&1

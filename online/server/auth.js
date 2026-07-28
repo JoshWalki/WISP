@@ -8,8 +8,28 @@ const config = require('./config');
 const { logAuth, logSecurity } = require('./logger');
 
 /**
- * Validates the X-WISP-Token header
+ * Constant-time check of a candidate token against the configured one.
+ * Standalone (no req/res coupling) so non-Express callers - like the
+ * WebSocket shell handler - can reuse the same check.
  * SECURITY: Constant-time comparison to prevent timing attacks
+ */
+function isValidToken(providedToken) {
+  if (!config.auth.token || !providedToken) {
+    return false;
+  }
+
+  const expectedToken = Buffer.from(config.auth.token, 'utf8');
+  const providedBuffer = Buffer.from(String(providedToken), 'utf8');
+
+  if (expectedToken.length !== providedBuffer.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(expectedToken, providedBuffer);
+}
+
+/**
+ * Validates the X-WISP-Token header
  */
 function validateToken(req, res, next) {
   const clientIp = req.ip || req.connection.remoteAddress;
@@ -34,23 +54,7 @@ function validateToken(req, res, next) {
     });
   }
 
-  // Constant-time comparison to prevent timing attacks
-  const expectedToken = Buffer.from(config.auth.token, 'utf8');
-  const providedBuffer = Buffer.from(providedToken, 'utf8');
-
-  // Ensure same length before comparison
-  if (expectedToken.length !== providedBuffer.length) {
-    logAuth(false, clientIp, { reason: 'Invalid token length' });
-    return res.status(403).json({
-      success: false,
-      error: 'Invalid authentication token'
-    });
-  }
-
-  // Use crypto.timingSafeEqual for constant-time comparison
-  const tokensMatch = crypto.timingSafeEqual(expectedToken, providedBuffer);
-
-  if (!tokensMatch) {
+  if (!isValidToken(providedToken)) {
     logAuth(false, clientIp, { reason: 'Token mismatch' });
     logSecurity('Invalid token attempt', clientIp, {
       providedTokenHash: crypto.createHash('sha256').update(providedToken).digest('hex')

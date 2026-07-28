@@ -789,22 +789,66 @@ try {
             $batteryInfo = @{ error = 'Could not retrieve battery information' }
         }
 
+        # Battery health (cycle count, capacity, expected life), parsed
+        # directly out of the battery report itself (powercfg /batteryreport)
+        # rather than running the separate, much slower /energy scan.
+        $batteryReportPath = Join-Path $TempDir 'battery_report.html'
+        $batteryHealth = $null
+        if (Test-Path $batteryReportPath) {
+            try {
+                $reportHtml = Get-Content $batteryReportPath -Raw
+
+                $designCapacity = $null
+                $fullChargeCapacity = $null
+                $cycleCount = $null
+
+                if ($reportHtml -match 'DESIGN CAPACITY</span></td><td>([\d,]+)\s*mWh') {
+                    $designCapacity = [int]($matches[1] -replace ',', '')
+                }
+                if ($reportHtml -match 'FULL CHARGE CAPACITY</span></td><td>([\d,]+)\s*mWh') {
+                    $fullChargeCapacity = [int]($matches[1] -replace ',', '')
+                }
+                if ($reportHtml -match 'CYCLE COUNT</span></td><td>([\d,]+)') {
+                    $cycleCount = [int]($matches[1] -replace ',', '')
+                }
+
+                $activeAtFullCharge = $null
+                $activeAtDesignCapacity = $null
+                if ($reportHtml -match 'Since OS install\s*</td>\s*<td class="hms">([\d:]+)</td>[\s\S]*?<td class="hms">([\d:]+)</td>\s*</tr>\s*</table>') {
+                    $activeAtFullCharge = $matches[1]
+                    $activeAtDesignCapacity = $matches[2]
+                }
+
+                $degradationPercent = $null
+                if ($designCapacity -and $fullChargeCapacity) {
+                    $degradationPercent = [math]::Round((1 - ($fullChargeCapacity / $designCapacity)) * 100, 1)
+                }
+
+                $batteryHealth = @{
+                    designCapacityMWh = $designCapacity
+                    fullChargeCapacityMWh = $fullChargeCapacity
+                    cycleCount = $cycleCount
+                    capacityDegradationPercent = $degradationPercent
+                    estimatedActiveLifeAtCurrentCapacity = $activeAtFullCharge
+                    estimatedActiveLifeAtDesignCapacity = $activeAtDesignCapacity
+                }
+            } catch {
+                $batteryHealth = @{ error = "Failed to parse battery report: $($_.Exception.Message)" }
+            }
+        } else {
+            $batteryHealth = @{ status = 'not_available'; reason = 'no_battery_or_generation_failed' }
+        }
+
         $systemData.power = @{
             powerSchemes = $powerSchemes
             battery = $batteryInfo
             reports = @{
-                batteryReport = if (Test-Path (Join-Path $TempDir 'battery_report.html')) {
+                batteryReport = if (Test-Path $batteryReportPath) {
                     @{ status = 'generated'; file = 'battery_report.html' }
                 } else {
                     @{ status = 'not_available'; reason = 'no_battery_or_generation_failed' }
                 }
-                energyReport = if (Test-Path (Join-Path $TempDir 'energy_report.html')) {
-                    @{ status = 'generated'; file = 'energy_report.html'; note = 'Requires admin privileges' }
-                } elseif ($IsAdmin) {
-                    @{ status = 'failed'; reason = 'generation_error_or_no_issues_found' }
-                } else {
-                    @{ status = 'skipped'; reason = 'admin_privileges_required' }
-                }
+                energyReport = $batteryHealth
             }
         }
     } catch {
@@ -958,8 +1002,7 @@ try {
             'arp.txt',
             'routes.txt',
             'gpresult.txt',
-            'battery_report.html',
-            'energy_report.html'
+            'battery_report.html'
         )
     }
 
